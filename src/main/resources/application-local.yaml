@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ArMZQkdSm
+          jwk-set-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ArMZQkdSm/.well-known/jwks.json
+
+cognito:
+  region: us-east-1
+  client-id: 765pe5r1gdfda9l4ba1ompucbg
+  client-secret: m87hojr560lrrkgev0dq7gkjt9khmqcpt17hsdb7afk9uedlph4
+  user-pool-id: us-east-1_ArMZQkdSm
+
+logging:
+  level:
+    org.app.vestiobackend: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG

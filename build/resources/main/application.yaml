@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: vestio-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URI}
+          jwk-set-uri: ${COGNITO_JWK_SET_URI}
+
+cognito:
+  region: ${AWS_REGION}
+  client-id: ${COGNITO_CLIENT_ID}
+  client-secret: ${COGNITO_CLIENT_SECRET}
+  user-pool-id: ${COGNITO_USER_POOL_ID}
+  # Note: Access and ID tokens in Cognito have a maximum validity of 24 hours.
+  # Refresh tokens can be configured for longer durations (e.g., 48 hours or more).
+  token-expiration-seconds: 172800

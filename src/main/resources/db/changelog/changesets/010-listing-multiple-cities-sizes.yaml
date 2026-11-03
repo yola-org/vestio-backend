@@ -1,0 +1,72 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-listing-multiple-cities-sizes
+      author: youssef
+      changes:
+        - createTable:
+            tableName: listing_cities
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_cities_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: city_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_cities_city
+                    referencedTableName: cities
+                    referencedColumnNames: id
+
+        - createTable:
+            tableName: listing_sizes
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_sizes_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: size_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_sizes_size
+                    referencedTableName: sizes
+                    referencedColumnNames: id
+
+        - sql:
+            dbms: h2, postgresql
+            sql: "INSERT INTO listing_cities (listing_id, city_id) SELECT id, city_id FROM listings"
+        
+        - sql:
+            dbms: h2, postgresql
+            sql: "INSERT INTO listing_sizes (listing_id, size_id) SELECT id, size_id FROM listings WHERE size_id IS NOT NULL"
+
+        - dropForeignKeyConstraint:
+            baseTableName: listings
+            constraintName: fk_listing_city
+        
+        - dropForeignKeyConstraint:
+            baseTableName: listings
+            constraintName: fk_listing_size
+
+        - dropIndex:
+            indexName: idx_listing_city
+            tableName: listings
+
+        - dropColumn:
+            tableName: listings
+            columnName: city_id
+        
+        - dropColumn:
+            tableName: listings
+            columnName: size_id

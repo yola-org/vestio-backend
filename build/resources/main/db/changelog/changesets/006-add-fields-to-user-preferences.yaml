@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-add-gender-and-city-to-user-preferences
+      author: youssef
+      changes:
+        - addColumn:
+            tableName: user_preferences
+            columns:
+              - column:
+                  name: gender
+                  type: VARCHAR(50)
+              - column:
+                  name: city
+                  type: VARCHAR(255)

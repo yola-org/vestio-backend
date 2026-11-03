@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-sizes-and-size-groups
+      author: youssef
+      changes:
+        - createTable:
+            tableName: size_groups
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+        - createTable:
+            tableName: sizes
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: size_group_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_size_group
+                    referencedTableName: size_groups
+                    referencedColumnNames: id
+
+        - addColumn:
+            tableName: categories
+            columns:
+              - column:
+                  name: size_group_id
+                  type: UUID
+                  constraints:
+                    foreignKeyName: fk_category_size_group
+                    referencedTableName: size_groups
+                    referencedColumnNames: id
+
+        - addColumn:
+            tableName: listings
+            columns:
+              - column:
+                  name: size_id
+                  type: UUID
+                  constraints:
+                    foreignKeyName: fk_listing_size
+                    referencedTableName: sizes
+                    referencedColumnNames: id

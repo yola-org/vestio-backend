@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changesets/001-create-users-table.yaml
+  - include:
+      file: db/changelog/changesets/003-create-listing-entities.yaml
+  - include:
+      file: db/changelog/changesets/002-create-user-preferences-table.yaml
+  - include:
+      file: db/changelog/changesets/006-add-fields-to-user-preferences.yaml
+  - include:
+      file: db/changelog/changesets/007-remove-city-from-user-preferences.yaml
+  - include:
+      file: db/changelog/changesets/008-add-sizes-and-size-groups.yaml
+  - include:
+      file: db/changelog/changesets/009-listing-multiple-contact-types.yaml
+  - include:
+      file: db/changelog/changesets/010-listing-multiple-cities-sizes.yaml

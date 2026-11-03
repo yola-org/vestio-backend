@@ -1,0 +1,175 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-cities-and-categories-tables
+      author: youssef
+      changes:
+        - createTable:
+            tableName: cities
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+        - createTable:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(255)
+              - column:
+                  name: image
+                  type: VARCHAR(255)
+              - column:
+                  name: parent_id
+                  type: UUID
+                  constraints:
+                    foreignKeyName: fk_category_parent
+                    referencedTableName: categories
+                    referencedColumnNames: id
+
+  - changeSet:
+      id: 004-create-listings-table
+      author: youssef
+      changes:
+        - createTable:
+            tableName: listings
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: CLOB
+              - column:
+                  name: price
+                  type: DECIMAL(19, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: contact_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: condition
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_user
+                    referencedTableName: users
+                    referencedColumnNames: id
+              - column:
+                  name: city_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_city
+                    referencedTableName: cities
+                    referencedColumnNames: id
+              - column:
+                  name: category_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_category
+                    referencedTableName: categories
+                    referencedColumnNames: id
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: listing_colors
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_colors_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: color
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 005-add-listing-indexes
+      author: youssef
+      changes:
+        - createIndex:
+            indexName: idx_listing_city
+            tableName: listings
+            columns:
+              - column:
+                  name: city_id
+        - createIndex:
+            indexName: idx_listing_category
+            tableName: listings
+            columns:
+              - column:
+                  name: category_id
+        - createIndex:
+            indexName: idx_listing_user
+            tableName: listings
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            indexName: idx_listing_status
+            tableName: listings
+            columns:
+              - column:
+                  name: status

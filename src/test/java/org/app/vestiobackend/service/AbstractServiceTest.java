@@ -1,0 +1,166 @@
+package org.app.vestiobackend.service;
+
+import lombok.extern.slf4j.Slf4j;
+import org.app.vestiobackend.entity.Category;
+import org.app.vestiobackend.entity.City;
+import org.app.vestiobackend.entity.Listing;
+import org.app.vestiobackend.entity.User;
+import org.app.vestiobackend.entity.enums.Condition;
+import org.app.vestiobackend.entity.enums.ContactType;
+import org.app.vestiobackend.entity.enums.ListingStatus;
+import org.app.vestiobackend.repository.UserPreferenceRepository;
+import org.app.vestiobackend.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+@Slf4j
+@SpringBootTest
+@org.springframework.test.context.ActiveProfiles("test")
+public abstract class AbstractServiceTest {
+
+    @Autowired
+    protected UserRepository userRepository;
+
+    @Autowired
+    protected UserPreferenceRepository userPreferenceRepository;
+
+    @Autowired
+    protected org.app.vestiobackend.repository.ListingRepository listingRepository;
+
+    @Autowired
+    protected org.app.vestiobackend.repository.CityRepository cityRepository;
+
+    @Autowired
+    protected org.app.vestiobackend.repository.CategoryRepository categoryRepository;
+
+    @Autowired
+    protected org.app.vestiobackend.repository.SizeRepository sizeRepository;
+
+    @Autowired
+    protected org.app.vestiobackend.repository.SizeGroupRepository sizeGroupRepository;
+
+    @MockBean
+    protected CognitoIdentityProviderClient cognitoClient;
+
+    protected final String TEST_EMAIL = "test@example.com";
+
+    protected User testUser;
+    protected City testCity;
+    protected Category testCategory;
+    protected org.app.vestiobackend.entity.Size testSize;
+    protected org.app.vestiobackend.entity.SizeGroup testSizeGroup;
+
+    @BeforeEach
+    public void setup() {
+        SecurityContextHolder.clearContext();
+        listingRepository.deleteAll();
+        userPreferenceRepository.deleteAll();
+        userRepository.deleteAll();
+        categoryRepository.deleteAll();
+        cityRepository.deleteAll();
+        sizeRepository.deleteAll();
+        sizeGroupRepository.deleteAll();
+
+        setupSecurityContext(TEST_EMAIL);
+        initializeDefaultData();
+    }
+
+    private void initializeDefaultData() {
+        testUser = createTestUser(TEST_EMAIL);
+
+        testCity = City.builder()
+                .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"))
+                .name("Casablanca")
+                .build();
+        cityRepository.save(testCity);
+
+        testSizeGroup = org.app.vestiobackend.entity.SizeGroup.builder()
+                .id(UUID.randomUUID())
+                .name("Clothing")
+                .build();
+        sizeGroupRepository.save(testSizeGroup);
+
+        testSize = org.app.vestiobackend.entity.Size.builder()
+                .id(UUID.randomUUID())
+                .name("M")
+                .sizeGroup(testSizeGroup)
+                .build();
+        sizeRepository.save(testSize);
+
+        testCategory = Category.builder()
+                .id(UUID.fromString("660e8400-e29b-41d4-a716-446655440000"))
+                .name("Tops")
+                .description("T-shirts, blouses, shirts")
+                .sizeGroup(testSizeGroup)
+                .build();
+        categoryRepository.save(testCategory);
+    }
+
+    protected Listing createTestListing(String title, User user, City city, Category category) {
+        Listing listing = Listing.builder()
+                .id(UUID.randomUUID())
+                .title(title)
+                .description("Default description")
+                .price(new BigDecimal("100.00"))
+                .quantity(1)
+                .condition(Condition.GOOD)
+                .contactTypes(List.of(ContactType.MEETUP))
+                .status(ListingStatus.AVAILABLE)
+                .user(user)
+                .cities(List.of(city))
+                .category(category)
+                .colors(List.of("Black"))
+                .build();
+        return listingRepository.save(listing);
+    }
+
+    protected void setupSecurityContext(String email) {
+        Jwt jwt = mock(Jwt.class);
+        when(jwt.getClaimAsString("email")).thenReturn(email);
+
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(jwt);
+        // Also support simple email principal if needed by some services
+        // when(authentication.getPrincipal()).thenReturn(email); 
+
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+
+        SecurityContextHolder.setContext(securityContext);
+    }
+
+    @AfterEach
+    public void tearDown() {
+        listingRepository.deleteAll();
+        userPreferenceRepository.deleteAll();
+        userRepository.deleteAll();
+        categoryRepository.deleteAll();
+        cityRepository.deleteAll();
+        SecurityContextHolder.clearContext();
+    }
+
+    protected User createTestUser(String email) {
+        User user = User.builder()
+                .id(UUID.randomUUID())
+                .email(email)
+                .firstName("Test")
+                .lastName("User")
+                .build();
+        return userRepository.save(user);
+    }
+}

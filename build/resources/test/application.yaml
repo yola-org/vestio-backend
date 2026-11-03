@@ -1,0 +1,29 @@
+spring:
+  main:
+    allow-bean-definition-overriding: true
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_example}
+          jwk-set-uri: ${COGNITO_JWK_SET_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_example/.well-known/jwks.json}
+
+cognito:
+  region: ${AWS_REGION:us-east-1}
+  client-id: ${COGNITO_CLIENT_ID:765pe5r1gdfda9l4ba1ompucbg}
+  client-secret: ${COGNITO_CLIENT_SECRET:m87hojr560lrrkgev0dq7gkjt9khmqcpt17hsdb7afk9uedlph4}
+  user-pool-id: ${COGNITO_USER_POOL_ID:us-east-1_example}
+  scope: ${COGNITO_SCOPE:default-m2m-resource-server-rfpja/read}
+  grant-type: ${COGNITO_GRANT_TYPE:client_credentials}
+  token-expiration-seconds: 172800

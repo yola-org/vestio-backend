@@ -1,0 +1,8 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-remove-city-from-user-preferences
+      author: youssef
+      changes:
+        - dropColumn:
+            tableName: user_preferences
+            columnName: city
