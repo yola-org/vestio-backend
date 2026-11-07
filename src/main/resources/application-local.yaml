@@ -12,17 +12,19 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ArMZQkdSm
-          jwk-set-uri: https://cognito-idp.us-east-1.amazonaws.com/us-east-1_ArMZQkdSm/.well-known/jwks.json
+          issuer-uri: ${cognito.issuer-uri}
+          jwk-set-uri: ${cognito.jwk-set-uri}
 
+# Local Cognito: loaded from AWS Secrets Manager at startup via your AWS
+# profile (AWS_PROFILE or ~/.aws/credentials). Secret name defaults to
+# vestio-dev/cognito-client-secret (override with the cognito.secret-name property).
 cognito:
-  region: us-east-1
-  client-id: 765pe5r1gdfda9l4ba1ompucbg
-  client-secret: m87hojr560lrrkgev0dq7gkjt9khmqcpt17hsdb7afk9uedlph4
-  user-pool-id: us-east-1_ArMZQkdSm
+  region: ${cognito.region:ca-central-1}
+  client-id: ${cognito.client-id}
+  client-secret: ${cognito.client-secret}
+  user-pool-id: ${cognito.user-pool-id}
 
 logging:
   level:
     org.app.vestiobackend: DEBUG
     org.springframework.web: DEBUG
-    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG

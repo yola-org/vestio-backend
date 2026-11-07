@@ -32,7 +32,7 @@ public class CategoryController {
 
         List<CategoryDto> hierarchy = dtos.stream()
                 .filter(dto -> dto.getParentId() == null)
-                .peek(root -> root.setSubcategories(
+                .peek(root -> root.setSubCategories(
                         dtos.stream()
                                 .filter(sub -> root.getId().equals(sub.getParentId()))
                                 .collect(Collectors.toList())

@@ -102,7 +102,7 @@ public class AuthService {
      */
     public JwtResponseDto login(LoginRequestDto request) {
         if (!userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new UnAuthorizedException();
+            throw new UnAuthorizedException("User not found or invalid credentials.");
         }
 
         String secretHash = calculateSecretHash(clientId, clientSecret, request.getEmail());
@@ -128,7 +128,7 @@ public class AuthService {
                     .expiresIn(result.expiresIn().longValue())
                     .tokenType(result.tokenType())
                     .build();
-        } catch (UserNotFoundException e) {
+        } catch (UserNotFoundException | NotAuthorizedException e) {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "User not found or invalid credentials.");
         }
     }

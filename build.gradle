@@ -30,6 +30,7 @@ dependencies {
     implementation 'org.liquibase:liquibase-core'
     implementation 'org.yaml:snakeyaml'
     implementation 'software.amazon.awssdk:cognitoidentityprovider:2.29.0'
+    implementation 'software.amazon.awssdk:secretsmanager:2.29.0'
     implementation 'org.mapstruct:mapstruct:1.6.2'
     compileOnly 'org.projectlombok:lombok'
     compileOnly 'org.projectlombok:lombok-mapstruct-binding:0.2.0'

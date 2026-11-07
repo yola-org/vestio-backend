@@ -51,3 +51,5 @@ desktop.ini
 *.tmp
 *.swp
 *.bak
+
+.gradle
