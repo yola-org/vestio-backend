@@ -19,5 +19,5 @@ public class CategoryDto {
     private String image;
     private UUID parentId;
     private SizeGroupDto sizeGroup;
-    private List<CategoryDto> subcategories;
+    private List<CategoryDto> subCategories;
 }
