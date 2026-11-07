@@ -5,8 +5,8 @@ import org.app.vestiobackend.dto.LoginRequestDto;
 import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.service.AuthService;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
@@ -17,7 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 public class AuthControllerTest extends AbstractControllerTest {
 
-    @MockBean
+    @MockitoBean
     private AuthService authService;
 
     @Test

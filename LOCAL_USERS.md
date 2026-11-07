@@ -12,6 +12,25 @@ The `local` Spring profile uses a file-based H2 database and syncs these users t
 
 Run the backend with the `local` profile (the Gradle `bootRun` task activates it by default) to use these seeded accounts. The database is recreated when the application stops. Do not use these test credentials outside local development.
 
-## Production environment
+## Cognito configuration
 
-The default (non-local) profile loads its Cognito configuration from AWS Secrets Manager at startup (`vestio/cognito-client-secret` for `prod`, `vestio-dev/cognito-client-secret` otherwise), through the default AWS credentials chain (instance profile on EC2; `AWS_PROFILE` locally). The secret holds the full Cognito JSON config. No production Cognito credentials are stored in the YAML files or in the environment. Database credentials still come from the datasource environment variables (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). Local Cognito test sync (seeded users) additionally requires AWS credentials with `cognito-idp:AdminCreateUser` and `cognito-idp:AdminSetUserPassword` on the `vestio-dev-users` pool.
+Deployed environments (prod and dev) read unprefixed environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `COGNITO_REGION` | AWS region of the Cognito user pool |
+| `COGNITO_CLIENT_ID` | Cognito app client ID |
+| `COGNITO_CLIENT_SECRET` | Cognito app client secret |
+| `COGNITO_USER_POOL_ID` | Cognito user pool ID |
+| `COGNITO_ISSUER_URI` | OAuth2 JWT issuer URI |
+| `COGNITO_JWK_SET_URI` | OAuth2 JWK set URI |
+
+The EC2 launch template fetches the `PROD_*` / `DEV_*` Secrets Manager entries, strips the prefix, and injects these variables.
+
+Local development uses the same unprefixed names. `LocalCognitoSecretsEnvironmentPostProcessor` (active only for the `local` profile) resolves any missing value from the matching `DEV_*` secret with your default AWS credentials:
+
+`COGNITO_CLIENT_ID` ← `DEV_COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET` ← `DEV_COGNITO_CLIENT_SECRET`, `COGNITO_USER_POOL_ID` ← `DEV_COGNITO_USER_POOL_ID`, `COGNITO_REGION` ← `DEV_COGNITO_REGION`, `COGNITO_ISSUER_URI` ← `DEV_COGNITO_ISSUER_URI`, `COGNITO_JWK_SET_URI` ← `DEV_COGNITO_JWK_SET_URI`.
+
+Anything you export yourself takes precedence, and the fetch is skipped when all six are provided.
+
+Database credentials still come from the datasource environment variables (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). Local Cognito test sync (seeded users) additionally requires AWS credentials with `cognito-idp:AdminCreateUser` and `cognito-idp:AdminSetUserPassword` on the `vestio-dev-users` pool.

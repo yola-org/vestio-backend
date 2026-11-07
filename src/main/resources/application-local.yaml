@@ -1,4 +1,12 @@
 spring:
+  config:
+    import:
+      - aws-secretsmanager:DEV/COGNITO/CLIENT_ID?prefix=COGNITO.
+      - aws-secretsmanager:DEV/COGNITO/JWK_SET_URI?prefix=COGNITO.
+      - aws-secretsmanager:DEV/COGNITO/CLIENT_SECRET?prefix=COGNITO.
+      - aws-secretsmanager:DEV/COGNITO/ISSUER_URI?prefix=COGNITO.
+      - aws-secretsmanager:DEV/COGNITO/REGION?prefix=COGNITO.
+      - aws-secretsmanager:DEV/COGNITO/USER_POOL_ID?prefix=COGNITO.
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -6,23 +14,26 @@ spring:
     password:
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
-    hibernate:
-      ddl-auto: create-drop
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${cognito.issuer-uri}
-          jwk-set-uri: ${cognito.jwk-set-uri}
+          issuer-uri: ${COGNITO.ISSUER_URI}
+          jwk-set-uri: ${COGNITO.JWK_SET_URI}
 
-# Local Cognito: loaded from AWS Secrets Manager at startup via your AWS
-# profile (AWS_PROFILE or ~/.aws/credentials). Secret name defaults to
-# vestio-dev/cognito-client-secret (override with the cognito.secret-name property).
+# Local development uses the same unprefixed COGNITO_* names as deployed
+# environments. LocalCognitoSecretsEnvironmentPostProcessor resolves any missing
+# value from the matching DEV_* Secrets Manager entry using the default AWS
+# credentials chain (AWS_PROFILE or instance profile). The dev deployment, like
+# prod, gets COGNITO_* from the launch template instead.
 cognito:
-  region: ${cognito.region:ca-central-1}
-  client-id: ${cognito.client-id}
-  client-secret: ${cognito.client-secret}
-  user-pool-id: ${cognito.user-pool-id}
+  region: ca-central-1
+  client-id: ${COGNITO.CLIENT_ID}
+  client-secret: ${COGNITO.CLIENT_SECRET}
+  user-pool-id: ${COGNITO.USER_POOL_ID}
 
 logging:
   level:

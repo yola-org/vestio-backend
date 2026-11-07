@@ -1,6 +1,6 @@
 package org.app.vestiobackend.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
@@ -13,14 +13,13 @@ import org.app.vestiobackend.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -56,7 +55,7 @@ public abstract class AbstractControllerTest {
     @Autowired
     protected org.app.vestiobackend.repository.SizeGroupRepository sizeGroupRepository;
 
-    @MockBean
+    @MockitoBean
     protected CognitoIdentityProviderClient cognitoClient;
 
     protected final String TEST_EMAIL = "test@example.com";
@@ -142,6 +141,8 @@ public abstract class AbstractControllerTest {
         userRepository.deleteAll();
         categoryRepository.deleteAll();
         cityRepository.deleteAll();
+        sizeRepository.deleteAll();
+        sizeGroupRepository.deleteAll();
     }
 
     protected RequestPostProcessor authenticatedUser(String email) {

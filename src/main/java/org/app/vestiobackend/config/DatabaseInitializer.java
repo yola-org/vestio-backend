@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-@Profile("!test")
+@Profile("local")
 @Order(1)
 public class DatabaseInitializer implements CommandLineRunner {
 

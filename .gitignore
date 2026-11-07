@@ -28,7 +28,7 @@ out/
 hs_err_pid*
 
 # Spring Boot / Environment
-.env
+src/main/resources/.env
 .env.*
 !.env.example
 application-local.properties
