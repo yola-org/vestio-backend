@@ -50,7 +50,7 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
 
         assertNotNull(created.getId());
         assertEquals("Cool T-shirt", created.getTitle());
-        assertEquals(ListingStatus.AVAILABLE, created.getStatus());
+        assertEquals(ListingStatus.AWAITING_ASSETS, created.getStatus());
         assertEquals(testUser.getId(), created.getUserId());
         assertTrue(created.getCityIds().contains(testCity.getId()));
     }
@@ -95,14 +95,13 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
                 .condition(Condition.VERY_GOOD)
                 .cityIds(List.of(testCity.getId()))
                 .categoryId(testCategory.getId())
-                .status(ListingStatus.RESERVED)
                 .build();
 
         ListingDto updated = listingService.updateListing(created.getId(), updateDto);
 
         assertEquals("Updated Title", updated.getTitle());
         assertEquals(new BigDecimal("15.00"), updated.getPrice());
-        assertEquals(ListingStatus.RESERVED, updated.getStatus());
+        assertEquals(ListingStatus.AWAITING_ASSETS, updated.getStatus());
     }
 
     @Test

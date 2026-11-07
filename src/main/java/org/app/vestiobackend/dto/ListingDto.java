@@ -1,6 +1,7 @@
 package org.app.vestiobackend.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -31,9 +32,12 @@ public class ListingDto {
     @Positive(message = "Price must be positive")
     private BigDecimal price;
 
+    private String gender;
+
+    private UUID brandId;
+
     private List<String> colors;
 
-    @NotNull(message = "Contact types are required")
     private List<ContactType> contactTypes;
 
     @NotNull(message = "Condition is required")
@@ -45,7 +49,7 @@ public class ListingDto {
     @Positive(message = "Quantity must be positive")
     private Integer quantity;
 
-    @NotNull(message = "City IDs are required")
+    @NotEmpty(message = "At least one city is required")
     private List<UUID> cityIds;
 
     @NotNull(message = "Category ID is required")

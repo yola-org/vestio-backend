@@ -39,6 +39,11 @@ public class Listing {
     @Column(nullable = false)
     private BigDecimal price;
 
+    private String gender;
+
+    @Column(name = "brand_id")
+    private UUID brandId;
+
     @ElementCollection
     @CollectionTable(name = "listing_colors", joinColumns = @JoinColumn(name = "listing_id"))
     @Column(name = "color")

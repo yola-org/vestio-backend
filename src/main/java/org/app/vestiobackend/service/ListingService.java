@@ -15,6 +15,8 @@ import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -35,6 +37,8 @@ public class ListingService {
     private final org.app.vestiobackend.repository.SizeRepository sizeRepository;
     private final ListingMapper listingMapper;
     private final UserContext userContext;
+    private final ObjectProvider<S3AssetsService> s3AssetsServiceProvider;
+    private final ObjectProvider<SqsEventPublisher> sqsEventPublisherProvider;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -70,9 +74,8 @@ public class ListingService {
             listing.setSizes(new java.util.ArrayList<>(sizes));
         }
 
-        if (listing.getStatus() == null) {
-            listing.setStatus(ListingStatus.AVAILABLE);
-        }
+        // Listing status is controlled by the asset workflow, never by the request body.
+        listing.setStatus(ListingStatus.AWAITING_ASSETS);
 
         Listing saved = listingRepository.save(listing);
         return listingMapper.toDto(saved);
@@ -130,10 +133,6 @@ public class ListingService {
         listing.setCondition(dto.getCondition());
         listing.setQuantity(dto.getQuantity());
 
-        if (dto.getStatus() != null) {
-            listing.setStatus(dto.getStatus());
-        }
-
         if (dto.getCityIds() != null) {
             List<City> cities = cityRepository.findAllById(dto.getCityIds());
             if (cities.size() != dto.getCityIds().size()) {
@@ -157,6 +156,55 @@ public class ListingService {
         }
 
         return listingMapper.toDto(listingRepository.save(listing));
+    }
+
+    @Transactional
+    public ListingDto uploadAssets(UUID id, List<MultipartFile> images) {
+        Listing listing = listingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
+
+        User currentUser = userContext.getCurrentUser();
+        if (!listing.getUser().getId().equals(currentUser.getId())) {
+            throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to upload listing assets");
+        }
+
+        S3AssetsService s3AssetsService = s3AssetsServiceProvider.getIfAvailable();
+        SqsEventPublisher sqsEventPublisher = sqsEventPublisherProvider.getIfAvailable();
+        if (s3AssetsService == null || sqsEventPublisher == null) {
+            throw new IllegalStateException("Listing asset storage is not configured");
+        }
+
+        List<String> objectKeys = images.stream()
+                .filter(image -> !image.isEmpty())
+                .map(image -> uploadImage(s3AssetsService, listing.getId(), image))
+                .toList();
+        if (objectKeys.isEmpty()) {
+            throw new IllegalArgumentException("At least one non-empty image is required");
+        }
+
+        listing.setStatus(ListingStatus.PENDING);
+        Listing saved = listingRepository.save(listing);
+        sqsEventPublisher.publishListingAssetsAdded(currentUser.getId(), saved.getId(), objectKeys);
+        return listingMapper.toDto(saved);
+    }
+
+    private String uploadImage(S3AssetsService s3AssetsService, UUID listingId, MultipartFile image) {
+        String contentType = image.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Only image files may be uploaded");
+        }
+        String originalFilename = image.getOriginalFilename();
+        String normalizedFilename = originalFilename == null ? "" : originalFilename.replace('\\', '/');
+        String filename = normalizedFilename.substring(normalizedFilename.lastIndexOf('/') + 1);
+        if (filename.isBlank()) {
+            filename = "image";
+        }
+        try {
+            return s3AssetsService.putListingAsset(listingId, UUID.randomUUID(), filename,
+                    image.getBytes(), contentType);
+        } catch (java.io.IOException exception) {
+            throw new IllegalArgumentException("Could not read uploaded image", exception);
+        }
     }
 
     /**
