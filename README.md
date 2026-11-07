@@ -43,6 +43,10 @@ COGNITO_JWK_SET_URI   <- DEV_COGNITO_JWK_SET_URI
 
 Any value you export yourself wins, and the fetch is skipped when all six are set. The resolver runs only for the `local` profile; `dev` and prod are deployed with the EC2 launch template, which fetches `DEV_*` / `PROD_*` secrets, strips the prefix, and injects the unprefixed `COGNITO_*` variables into the container.
 
+### AWS assets and events
+
+S3 assets use the `S3_ASSETS_BUCKET` environment variable. Objects are stored below the `users/` and `listings/` prefixes. SQS queue URLs are supplied through `SQS_USER_EVENTS_QUEUE_URL` and `SQS_LISTING_EVENTS_QUEUE_URL`. All AWS clients use the standard AWS credentials provider chain and `AWS_REGION` (defaulting to `ca-central-1`).
+
 ### API Documentation
 
 Once the application is running, you can access the Swagger UI at:
