@@ -5,10 +5,10 @@ import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsExceptio
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.app.vestiobackend.service.AuthService;
 import org.app.vestiobackend.dto.SignupRequestDto;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 public class GlobalExceptionHandlerTest extends AbstractControllerTest {
 
-    @MockBean
+    @MockitoBean
     private AuthService authService;
 
     @Test

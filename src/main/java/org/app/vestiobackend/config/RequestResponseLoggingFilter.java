@@ -1,3 +1,4 @@
+
 package org.app.vestiobackend.config;
 
 import jakarta.servlet.FilterChain;
@@ -16,18 +17,27 @@ import java.io.IOException;
 @Component
 public class RequestResponseLoggingFilter extends OncePerRequestFilter {
 
+    private static final int CONTENT_CACHE_LIMIT = 1024 * 1024; // 1 MB
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        
-        ContentCachingRequestWrapper requestWrapper = new ContentCachingRequestWrapper(request);
-        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        ContentCachingRequestWrapper requestWrapper =
+                new ContentCachingRequestWrapper(request, CONTENT_CACHE_LIMIT);
+
+        ContentCachingResponseWrapper responseWrapper =
+                new ContentCachingResponseWrapper(response);
 
         try {
             filterChain.doFilter(requestWrapper, responseWrapper);
         } finally {
             logRequest(requestWrapper);
             logResponse(requestWrapper, responseWrapper);
+
             responseWrapper.copyBodyToResponse();
         }
     }
@@ -35,16 +45,30 @@ public class RequestResponseLoggingFilter extends OncePerRequestFilter {
     private void logRequest(ContentCachingRequestWrapper request) {
         String method = request.getMethod();
         String uri = request.getRequestURI();
-        int payloadLength = request.getContentLength();
-        if (payloadLength < 0) {
-            payloadLength = request.getContentAsByteArray().length;
-        }
-        log.info("[API Request] {} {} | Payload Length: {}", method, uri, payloadLength);
+
+        int payloadLength = request.getContentAsByteArray().length;
+
+        log.info(
+                "[API Request] {} {} | Payload Length: {} bytes",
+                method,
+                uri,
+                payloadLength
+        );
     }
 
-    private void logResponse(ContentCachingRequestWrapper request, ContentCachingResponseWrapper response) {
+    private void logResponse(
+            ContentCachingRequestWrapper request,
+            ContentCachingResponseWrapper response
+    ) {
         int status = response.getStatus();
         int payloadLength = response.getContentAsByteArray().length;
-        log.info("[API Response] {} {} | Status: {} | Payload Length: {}", request.getMethod(), request.getRequestURI(), status, payloadLength);
+
+        log.info(
+                "[API Response] {} {} | Status: {} | Payload Length: {} bytes",
+                request.getMethod(),
+                request.getRequestURI(),
+                status,
+                payloadLength
+        );
     }
 }

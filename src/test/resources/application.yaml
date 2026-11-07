@@ -2,7 +2,7 @@ spring:
   main:
     allow-bean-definition-overriding: true
   datasource:
-    url: jdbc:h2:mem:testdb
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -19,8 +19,7 @@ spring:
           issuer-uri: https://cognito-idp.ca-central-1.amazonaws.com/ca-central-1_test
           jwk-set-uri: https://cognito-idp.ca-central-1.amazonaws.com/ca-central-1_test/.well-known/jwks.json
 
-# Literal dummy values — the CognitoEnvironmentPostProcessor sees everything
-# provided and never touches AWS in tests.
+# Literal dummy values so tests never touch AWS.
 cognito:
   region: ca-central-1
   client-id: test-client-id

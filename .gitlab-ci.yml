@@ -6,8 +6,30 @@
 # Note that environment variables can be set in several places
 # See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
 stages:
+- build
 - test
 - secret-detection
+
+build:
+  stage: build
+  image: eclipse-temurin:25-jdk
+  script:
+    - ./gradlew assemble
+
+tests:
+  stage: test
+  image: eclipse-temurin:25-jdk
+  script:
+    - |
+      for variable in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_REGION AWS_DEFAULT_REGION; do
+        if [ -n "$(printenv "$variable")" ]; then
+          echo "$variable: present"
+        else
+          echo "$variable: MISSING"
+        fi
+      done
+    - ./gradlew test
+
 sast:
   stage: test
 include:

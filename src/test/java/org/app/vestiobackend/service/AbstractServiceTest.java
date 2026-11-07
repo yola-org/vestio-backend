@@ -14,11 +14,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 
 import java.math.BigDecimal;
@@ -54,7 +54,7 @@ public abstract class AbstractServiceTest {
     @Autowired
     protected org.app.vestiobackend.repository.SizeGroupRepository sizeGroupRepository;
 
-    @MockBean
+    @MockitoBean
     protected CognitoIdentityProviderClient cognitoClient;
 
     protected final String TEST_EMAIL = "test@example.com";
@@ -151,6 +151,8 @@ public abstract class AbstractServiceTest {
         userRepository.deleteAll();
         categoryRepository.deleteAll();
         cityRepository.deleteAll();
+        sizeRepository.deleteAll();
+        sizeGroupRepository.deleteAll();
         SecurityContextHolder.clearContext();
     }
 

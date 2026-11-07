@@ -34,13 +34,14 @@ public class CategoryControllerTest extends AbstractControllerTest {
                 .sizeGroup(testSizeGroup)
                 .build();
         categoryRepository.save(child);
+        categoryRepository.flush();
 
         mockMvc.perform(get("/api/categories"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[?(@.name == 'Femme')]").exists())
-                .andExpect(jsonPath("$[?(@.name == 'Femme')].subcategories").isNotEmpty())
-                .andExpect(jsonPath("$[?(@.name == 'Femme')].subcategories[0].sizeGroup.name").value("Clothing"));
+                .andExpect(jsonPath("$[?(@.name == 'Femme')].subCategories").isNotEmpty())
+                .andExpect(jsonPath("$[?(@.name == 'Femme')].subCategories[0].sizeGroup.name").value("Clothing"));
 
         // Verify cache
         Cache categoriesCache = cacheManager.getCache("categories");

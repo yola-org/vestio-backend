@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.5'
-    id 'io.spring.dependency-management' version '1.1.6'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'org.app'
@@ -10,8 +10,12 @@ description = 'vestio-backend'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
+        languageVersion = JavaLanguageVersion.of(25)
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
 }
 
 repositories {
@@ -21,17 +25,20 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-jackson'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-cache'
     implementation 'com.github.ben-manes.caffeine:caffeine'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
-    implementation 'org.liquibase:liquibase-core'
+    implementation 'org.springframework.boot:spring-boot-starter-liquibase'
     implementation 'org.yaml:snakeyaml'
     implementation 'software.amazon.awssdk:cognitoidentityprovider:2.29.0'
     implementation 'software.amazon.awssdk:secretsmanager:2.29.0'
     implementation 'org.mapstruct:mapstruct:1.6.2'
+    // Source: https://mvnrepository.com/artifact/io.awspring.cloud/spring-cloud-aws-starter-secrets-manager
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-secrets-manager:4.2.1")
     compileOnly 'org.projectlombok:lombok'
     compileOnly 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     runtimeOnly 'org.postgresql:postgresql'
@@ -40,6 +47,7 @@ dependencies {
     annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.2'
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-webmvc-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
     testCompileOnly 'org.projectlombok:lombok'

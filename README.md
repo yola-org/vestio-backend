@@ -30,6 +30,19 @@ To run the application locally with the default `local` profile:
 
 The `local` profile is configured in `src/main/resources/application-local.yaml` and is activated by default in the `bootRun` task.
 
+Cognito configuration is not stored in the YAML files. The YAML uses the same unprefixed `COGNITO_*` names everywhere; for the `local` profile, `LocalCognitoSecretsEnvironmentPostProcessor` resolves any missing value from the matching `DEV_*` Secrets Manager entry using your default AWS credentials (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, or an instance profile):
+
+```
+COGNITO_CLIENT_ID     <- DEV_COGNITO_CLIENT_ID
+COGNITO_CLIENT_SECRET <- DEV_COGNITO_CLIENT_SECRET
+COGNITO_USER_POOL_ID  <- DEV_COGNITO_USER_POOL_ID
+COGNITO_REGION        <- DEV_COGNITO_REGION
+COGNITO_ISSUER_URI    <- DEV_COGNITO_ISSUER_URI
+COGNITO_JWK_SET_URI   <- DEV_COGNITO_JWK_SET_URI
+```
+
+Any value you export yourself wins, and the fetch is skipped when all six are set. The resolver runs only for the `local` profile; `dev` and prod are deployed with the EC2 launch template, which fetches `DEV_*` / `PROD_*` secrets, strips the prefix, and injects the unprefixed `COGNITO_*` variables into the container.
+
 ### API Documentation
 
 Once the application is running, you can access the Swagger UI at:
