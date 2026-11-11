@@ -1,4 +1,4 @@
-package org.app.vestiobackend.config;
+package org.app.vestiobackend.config.initializers;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
