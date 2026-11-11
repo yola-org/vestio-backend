@@ -35,4 +35,16 @@ public interface ListingMapper {
     @Mapping(target = "category", ignore = true)
     @Mapping(target = "sizes", ignore = true)
     Listing toEntity(ListingDto dto);
+
+    @BeanMapping(ignoreByDefault = true, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.SET_TO_NULL)
+    @Mapping(target = "title")
+    @Mapping(target = "description")
+    @Mapping(target = "price")
+    @Mapping(target = "gender")
+    @Mapping(target = "brandId")
+    @Mapping(target = "colors")
+    @Mapping(target = "contactTypes")
+    @Mapping(target = "condition")
+    @Mapping(target = "quantity")
+    void updateListingFromDto(ListingDto dto, @MappingTarget Listing listing);
 }

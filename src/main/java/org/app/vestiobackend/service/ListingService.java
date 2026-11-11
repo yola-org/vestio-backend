@@ -125,13 +125,7 @@ public class ListingService {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to update this listing");
         }
 
-        listing.setTitle(dto.getTitle());
-        listing.setDescription(dto.getDescription());
-        listing.setPrice(dto.getPrice());
-        listing.setColors(dto.getColors() != null ? new java.util.ArrayList<>(dto.getColors()) : null);
-        listing.setContactTypes(dto.getContactTypes() != null ? new java.util.ArrayList<>(dto.getContactTypes()) : null);
-        listing.setCondition(dto.getCondition());
-        listing.setQuantity(dto.getQuantity());
+        listingMapper.updateListingFromDto(dto, listing);
 
         if (dto.getCityIds() != null) {
             List<City> cities = cityRepository.findAllById(dto.getCityIds());
