@@ -148,6 +148,6 @@ public abstract class AbstractControllerTest {
 
     protected RequestPostProcessor authenticatedUser(User user) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt.subject(user.getCognitoSub()).claim("username", user.getEmail()));
+                .jwt(jwt -> jwt.subject(user.getCognitoSub()).claim("username", user.getCognitoSub()));
     }
 }

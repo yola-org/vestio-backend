@@ -130,14 +130,14 @@ public abstract class AbstractServiceTest {
     }
 
     protected void setupSecurityContext(User user) {
-        setupSecurityContext(user.getEmail(), user.getCognitoSub());
+        setupSecurityContext(user.getCognitoSub());
     }
 
-    protected void setupSecurityContext(String username, String sub) {
+    protected void setupSecurityContext(String sub) {
         Jwt jwt = Jwt.withTokenValue("test-token")
                 .header("alg", "RS256")
                 .subject(sub)
-                .claim("username", username)
+                .claim("username", sub)
                 .build();
 
         Authentication authentication = mock(Authentication.class);

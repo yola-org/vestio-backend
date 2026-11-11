@@ -23,7 +23,6 @@ public class UserContextTest extends AbstractServiceTest {
 
     @Test
     public void getCurrentUserEmailShouldReturnEmailFromUserResolvedBySub() {
-        setupSecurityContext(testUser.getCognitoSub(), testUser.getCognitoSub());
         String email = userContext.getCurrentUserEmail();
         assertThat(email).isEqualTo(TEST_EMAIL);
     }
@@ -38,7 +37,7 @@ public class UserContextTest extends AbstractServiceTest {
     @Test
     public void getCurrentUserIdShouldReturnSubFromJwt() {
         String testSub = UUID.randomUUID().toString();
-        setupSecurityContext(TEST_EMAIL, testSub);
+        setupSecurityContext(testSub);
         String userId = userContext.getCurrentUserId();
         assertThat(userId).isEqualTo(testSub);
     }
@@ -46,9 +45,9 @@ public class UserContextTest extends AbstractServiceTest {
     @Test
     public void getClaimShouldReturnClaimValueFromJwt() {
         String testSub = UUID.randomUUID().toString();
-        setupSecurityContext(TEST_EMAIL, testSub);
+        setupSecurityContext(testSub);
         String username = userContext.getClaim("username");
-        assertThat(username).isEqualTo(TEST_EMAIL);
+        assertThat(username).isEqualTo(testSub);
     }
 
     @Test
@@ -60,7 +59,7 @@ public class UserContextTest extends AbstractServiceTest {
 
     @Test
     public void getCurrentUserShouldThrowExceptionWhenUserNotFound() {
-        setupSecurityContext(TEST_EMAIL, UUID.randomUUID().toString());
+        setupSecurityContext(UUID.randomUUID().toString());
         assertThrows(ResourceNotFoundException.class, () -> userContext.getCurrentUser());
     }
 

@@ -1,6 +1,6 @@
 # Local test users
 
-The `local` Spring profile uses a file-based H2 database and syncs these users to AWS Cognito. When the application starts with the `local` profile, it ensures these users exist in Cognito with the default password `Password123!`.
+The `local` Spring profile seeds an in-memory H2 database and syncs these test accounts to the dev Cognito pool. The initializer saves each account’s Cognito `sub` on its local user row. New accounts get the default password `Password123!`. Existing confirmed accounts keep their current password.
 
 | Email | Name | Test data |
 | --- | --- | --- |
@@ -27,10 +27,6 @@ Deployed environments (prod and dev) read unprefixed environment variables:
 
 The EC2 launch template fetches the `PROD_*` / `DEV_*` Secrets Manager entries, strips the prefix, and injects these variables.
 
-Local development uses the same unprefixed names. `LocalCognitoSecretsEnvironmentPostProcessor` (active only for the `local` profile) resolves any missing value from the matching `DEV_*` secret with your default AWS credentials:
+The local profile imports the Cognito settings from the `DEV/COGNITO/*` Secrets Manager entries using your AWS credentials. The seed sync also requires `cognito-idp:AdminCreateUser`, `cognito-idp:AdminGetUser`, and `cognito-idp:AdminSetUserPassword` on the dev user pool.
 
-`COGNITO_CLIENT_ID` ← `DEV_COGNITO_CLIENT_ID`, `COGNITO_CLIENT_SECRET` ← `DEV_COGNITO_CLIENT_SECRET`, `COGNITO_USER_POOL_ID` ← `DEV_COGNITO_USER_POOL_ID`, `COGNITO_REGION` ← `DEV_COGNITO_REGION`, `COGNITO_ISSUER_URI` ← `DEV_COGNITO_ISSUER_URI`, `COGNITO_JWK_SET_URI` ← `DEV_COGNITO_JWK_SET_URI`.
-
-Anything you export yourself takes precedence, and the fetch is skipped when all six are provided.
-
-Database credentials still come from the datasource environment variables (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD`). Local Cognito test sync (seeded users) additionally requires AWS credentials with `cognito-idp:AdminCreateUser` and `cognito-idp:AdminSetUserPassword` on the `vestio-dev-users` pool.
+Use the email address to sign in. Cognito issues the access token with its internal username, and the API uses the token’s `sub` to find the local user.
