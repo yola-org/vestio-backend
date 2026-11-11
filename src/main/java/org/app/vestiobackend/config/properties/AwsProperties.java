@@ -1,4 +1,4 @@
-package org.app.vestiobackend.config;
+package org.app.vestiobackend.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -11,6 +11,6 @@ public record AwsProperties(String region, S3 s3, Sqs sqs) {
     public record Sqs(Queues queues) {
     }
 
-    public record Queues(String userEventsUrl, String listingEventsUrl) {
+    public record Queues(String imageProcessing) {
     }
 }

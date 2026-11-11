@@ -31,3 +31,13 @@ cognito:
   client-secret: test-client-secret
   user-pool-id: ca-central-1_test
   token-expiration-seconds: 172800
+
+aws:
+  region: ca-central-1
+  s3:
+    assets-bucket: test-assets
+    users-prefix: users
+    listings-prefix: listings
+  sqs:
+    queues:
+      image-processing: https://sqs.ca-central-1.amazonaws.com/000000000000/test-image-processing

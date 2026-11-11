@@ -1,9 +1,8 @@
 package org.app.vestiobackend.service;
 
 import lombok.RequiredArgsConstructor;
-import org.app.vestiobackend.config.AwsProperties;
+import org.app.vestiobackend.config.properties.AwsProperties;
 import org.springframework.stereotype.Service;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
@@ -14,7 +13,6 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@ConditionalOnProperty(prefix = "aws.s3", name = "assets-bucket")
 @RequiredArgsConstructor
 public class S3AssetsService {
 
