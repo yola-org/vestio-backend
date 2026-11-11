@@ -1,5 +1,6 @@
 package org.app.vestiobackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -38,6 +39,9 @@ public class ListingDto {
 
     private List<String> colors;
 
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private List<UUID> assetKeys;
+
     private List<ContactType> contactTypes;
 
     @NotNull(message = "Condition is required")
@@ -55,9 +59,7 @@ public class ListingDto {
     @NotNull(message = "Category ID is required")
     private UUID categoryId;
 
-    private List<String> cityNames;
     private String categoryName;
     private List<UUID> sizeIds;
-    private List<String> sizeNames;
     private UUID userId;
 }

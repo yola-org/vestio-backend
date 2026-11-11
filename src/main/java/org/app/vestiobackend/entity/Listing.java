@@ -15,7 +15,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "listings", indexes = {
-        @Index(name = "idx_listing_city", columnList = "city_id"),
         @Index(name = "idx_listing_category", columnList = "category_id"),
         @Index(name = "idx_listing_user", columnList = "user_id"),
         @Index(name = "idx_listing_status", columnList = "status")
@@ -48,6 +47,12 @@ public class Listing {
     @CollectionTable(name = "listing_colors", joinColumns = @JoinColumn(name = "listing_id"))
     @Column(name = "color")
     private List<String> colors;
+
+    @ElementCollection
+    @CollectionTable(name = "listing_asset_keys", joinColumns = @JoinColumn(name = "listing_id"))
+    @OrderColumn(name = "position")
+    @Column(name = "asset_key", nullable = false)
+    private List<UUID> assetKeys;
 
     @ElementCollection
     @CollectionTable(name = "listing_contact_types", joinColumns = @JoinColumn(name = "listing_id"))

@@ -4,7 +4,6 @@ public enum ListingStatus {
     AWAITING_ASSETS,
     PENDING,
     AVAILABLE,
-    RESERVED,
     SOLD,
     HIDDEN
 }

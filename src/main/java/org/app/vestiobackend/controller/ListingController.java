@@ -1,6 +1,7 @@
 package org.app.vestiobackend.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.service.ListingService;
@@ -35,8 +36,14 @@ public class ListingController {
 
     @PostMapping(path = "/{id}/assets", consumes = "multipart/form-data")
     public ResponseEntity<ListingDto> uploadListingAssets(@PathVariable UUID id,
-                                                           @RequestParam("images") List<MultipartFile> images) {
+                                                           @RequestParam("images") @Size(min = 1, message = "At least one non-empty image is required") List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.uploadAssets(id, images));
+    }
+
+    @PutMapping(path = "/{id}/assets", consumes = "multipart/form-data")
+    public ResponseEntity<ListingDto> replaceListingAssets(@PathVariable UUID id,
+                                                          @RequestParam("images") @Size(min = 1, message = "At least one non-empty image is required") List<MultipartFile> images) {
+        return ResponseEntity.ok(listingService.replaceAssets(id, images));
     }
 
     /**

@@ -10,14 +10,13 @@ import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.ListingRepository;
-import org.app.vestiobackend.repository.UserRepository;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -31,14 +30,12 @@ import java.util.stream.Collectors;
 public class ListingService {
 
     private final ListingRepository listingRepository;
-    private final UserRepository userRepository;
     private final CityRepository cityRepository;
     private final CategoryRepository categoryRepository;
     private final org.app.vestiobackend.repository.SizeRepository sizeRepository;
     private final ListingMapper listingMapper;
     private final UserContext userContext;
-    private final ObjectProvider<S3AssetsService> s3AssetsServiceProvider;
-    private final ObjectProvider<SqsEventPublisher> sqsEventPublisherProvider;
+    private final AssetService assetService;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -88,6 +85,7 @@ public class ListingService {
      * @return The listing as a {@link ListingDto}.
      * @throws ResourceNotFoundException if the listing is not found.
      */
+    @Transactional(readOnly = true)
     public ListingDto getListing(UUID id) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
@@ -99,6 +97,7 @@ public class ListingService {
      *
      * @return A list of {@link ListingDto}s.
      */
+    @Transactional(readOnly = true)
     public List<ListingDto> getAllListings() {
         return listingRepository.findAll().stream()
                 .map(listingMapper::toDto)
@@ -117,7 +116,7 @@ public class ListingService {
      */
     @Transactional
     public ListingDto updateListing(UUID id, ListingDto dto) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findListingById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();
@@ -154,7 +153,16 @@ public class ListingService {
 
     @Transactional
     public ListingDto uploadAssets(UUID id, List<MultipartFile> images) {
-        Listing listing = listingRepository.findById(id)
+        return saveAssets(id, images, false);
+    }
+
+    @Transactional
+    public ListingDto replaceAssets(UUID id, List<MultipartFile> images) {
+        return saveAssets(id, images, true);
+    }
+
+    private ListingDto saveAssets(UUID id, List<MultipartFile> images, boolean replace) {
+        Listing listing = listingRepository.findListingById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();
@@ -162,43 +170,20 @@ public class ListingService {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to upload listing assets");
         }
 
-        S3AssetsService s3AssetsService = s3AssetsServiceProvider.getIfAvailable();
-        SqsEventPublisher sqsEventPublisher = sqsEventPublisherProvider.getIfAvailable();
-        if (s3AssetsService == null || sqsEventPublisher == null) {
-            throw new IllegalStateException("Listing asset storage is not configured");
+        List<AssetService.UploadedAsset> assets = assetService.uploadListingImages(listing.getId(), images);
+        List<UUID> assetIds = assets.stream().map(AssetService.UploadedAsset::id).toList();
+        if (listing.getAssetKeys() == null) {
+            listing.setAssetKeys(new ArrayList<>());
         }
-
-        List<String> objectKeys = images.stream()
-                .filter(image -> !image.isEmpty())
-                .map(image -> uploadImage(s3AssetsService, listing.getId(), image))
-                .toList();
-        if (objectKeys.isEmpty()) {
-            throw new IllegalArgumentException("At least one non-empty image is required");
+        if (replace) {
+            listing.getAssetKeys().clear();
         }
-
+        listing.getAssetKeys().addAll(assetIds);
         listing.setStatus(ListingStatus.PENDING);
-        Listing saved = listingRepository.save(listing);
-        sqsEventPublisher.publishListingAssetsAdded(currentUser.getId(), saved.getId(), objectKeys);
-        return listingMapper.toDto(saved);
-    }
-
-    private String uploadImage(S3AssetsService s3AssetsService, UUID listingId, MultipartFile image) {
-        String contentType = image.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw new IllegalArgumentException("Only image files may be uploaded");
-        }
-        String originalFilename = image.getOriginalFilename();
-        String normalizedFilename = originalFilename == null ? "" : originalFilename.replace('\\', '/');
-        String filename = normalizedFilename.substring(normalizedFilename.lastIndexOf('/') + 1);
-        if (filename.isBlank()) {
-            filename = "image";
-        }
-        try {
-            return s3AssetsService.putListingAsset(listingId, UUID.randomUUID(), filename,
-                    image.getBytes(), contentType);
-        } catch (java.io.IOException exception) {
-            throw new IllegalArgumentException("Could not read uploaded image", exception);
-        }
+        listingRepository.flush();
+        ListingDto result = listingMapper.toDto(listing);
+        assetService.queueListingImageOptimization(currentUser.getId(), listing.getId(), assets);
+        return result;
     }
 
     /**
@@ -211,7 +196,7 @@ public class ListingService {
      */
     @Transactional
     public void deleteListing(UUID id) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findListingById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();

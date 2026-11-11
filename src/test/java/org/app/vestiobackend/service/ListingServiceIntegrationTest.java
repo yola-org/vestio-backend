@@ -71,7 +71,6 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         ListingDto created = listingService.createListing(dto);
 
         assertTrue(created.getSizeIds().contains(testSize.getId()));
-        assertTrue(created.getSizeNames().contains(testSize.getName()));
     }
 
     @Test

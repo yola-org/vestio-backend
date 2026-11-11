@@ -13,12 +13,22 @@ spring:
         format_sql: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  servlet:
+    multipart:
+      max-file-size: ${app.image-upload.max-file-size}
+      max-request-size: ${app.image-upload.max-request-size}
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${COGNITO_ISSUER_URI}
           jwk-set-uri: ${COGNITO_JWK_SET_URI}
+
+app:
+  image-upload:
+    max-file-size: 10MB
+    max-request-size: 50MB
+    allowed-extensions: [jpg, jpeg, png, webp]
 
 cognito:
   # Values are loaded from AWS Secrets Manager at startup
