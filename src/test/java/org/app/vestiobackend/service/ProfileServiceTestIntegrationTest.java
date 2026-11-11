@@ -125,7 +125,7 @@ public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
         // Given
         userRepository.deleteAll(); // Remove the default testUser
         SecurityContextHolder.clearContext();
-        setupSecurityContext("notfound@example.com");
+        setupSecurityContext(testUser);
 
         // When & Then
         assertThrows(ResourceNotFoundException.class, () -> profileService.getOnboardingStatus());

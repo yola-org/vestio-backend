@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
+import org.app.vestiobackend.security.AuthRequired;
 import org.app.vestiobackend.service.ListingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,17 +30,20 @@ public class ListingController {
      * @param dto The listing data transfer object.
      * @return A response entity containing the created listing DTO.
      */
+    @AuthRequired
     @PostMapping
     public ResponseEntity<ListingDto> createListing(@Valid @RequestBody ListingDto dto) {
         return ResponseEntity.ok(listingService.createListing(dto));
     }
 
+    @AuthRequired
     @PostMapping(path = "/{id}/assets", consumes = "multipart/form-data")
     public ResponseEntity<ListingDto> uploadListingAssets(@PathVariable UUID id,
                                                            @RequestParam("images") @Size(min = 1, message = "At least one non-empty image is required") List<MultipartFile> images) {
         return ResponseEntity.ok(listingService.uploadAssets(id, images));
     }
 
+    @AuthRequired
     @PutMapping(path = "/{id}/assets", consumes = "multipart/form-data")
     public ResponseEntity<ListingDto> replaceListingAssets(@PathVariable UUID id,
                                                           @RequestParam("images") @Size(min = 1, message = "At least one non-empty image is required") List<MultipartFile> images) {
@@ -74,6 +78,7 @@ public class ListingController {
      * @param dto The updated listing data.
      * @return A response entity containing the updated listing DTO.
      */
+    @AuthRequired
     @PutMapping("/{id}")
     public ResponseEntity<ListingDto> updateListing(@PathVariable UUID id, @Valid @RequestBody ListingDto dto) {
         return ResponseEntity.ok(listingService.updateListing(id, dto));
@@ -85,6 +90,7 @@ public class ListingController {
      * @param id The UUID of the listing to delete.
      * @return A response entity with no content.
      */
+    @AuthRequired
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteListing(@PathVariable UUID id) {
         listingService.deleteListing(id);

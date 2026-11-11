@@ -132,8 +132,7 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         Listing listing = createTestListing("Other's Listing", testUser, testCity, testCategory);
         
         // Switch user
-        setupSecurityContext("other@example.com");
-        createTestUser("other@example.com");
+        setupSecurityContext(createTestUser("other@example.com"));
 
         ListingDto updateDto = ListingDto.builder()
                 .title("Try to update")
@@ -149,8 +148,7 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         Listing listing = createTestListing("Other's Listing", testUser, testCity, testCategory);
         
         // Switch user
-        setupSecurityContext("other@example.com");
-        createTestUser("other@example.com");
+        setupSecurityContext(createTestUser("other@example.com"));
 
         // When & Then
         assertThrows(UnAuthorizedException.class, () -> listingService.deleteListing(listing.getId()));

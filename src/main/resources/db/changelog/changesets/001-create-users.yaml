@@ -55,3 +55,16 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+  - changeSet:
+      id: 001-add-users-cognito-sub
+      author: youssef
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: cognito_sub
+                  type: VARCHAR(255)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_users_cognito_sub

@@ -76,8 +76,8 @@ public abstract class AbstractServiceTest {
         sizeRepository.deleteAll();
         sizeGroupRepository.deleteAll();
 
-        setupSecurityContext(TEST_EMAIL);
         initializeDefaultData();
+        setupSecurityContext(testUser);
     }
 
     private void initializeDefaultData() {
@@ -129,14 +129,19 @@ public abstract class AbstractServiceTest {
         return listingRepository.save(listing);
     }
 
-    protected void setupSecurityContext(String email) {
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getClaimAsString("email")).thenReturn(email);
+    protected void setupSecurityContext(User user) {
+        setupSecurityContext(user.getCognitoSub());
+    }
+
+    protected void setupSecurityContext(String sub) {
+        Jwt jwt = Jwt.withTokenValue("test-token")
+                .header("alg", "RS256")
+                .subject(sub)
+                .claim("username", sub)
+                .build();
 
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(jwt);
-        // Also support simple email principal if needed by some services
-        // when(authentication.getPrincipal()).thenReturn(email); 
 
         SecurityContext securityContext = mock(SecurityContext.class);
         when(securityContext.getAuthentication()).thenReturn(authentication);
@@ -159,6 +164,7 @@ public abstract class AbstractServiceTest {
     protected User createTestUser(String email) {
         User user = User.builder()
                 .id(UUID.randomUUID())
+                .cognitoSub(UUID.randomUUID().toString())
                 .email(email)
                 .firstName("Test")
                 .lastName("User")

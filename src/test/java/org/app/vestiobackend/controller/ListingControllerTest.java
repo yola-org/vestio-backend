@@ -51,7 +51,7 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .build();
 
         mockMvc.perform(post("/api/listings")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
@@ -77,7 +77,7 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .build();
 
         mockMvc.perform(put("/api/listings/{id}", listing.getId())
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
@@ -95,12 +95,12 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .thenAnswer(upload -> "listings/" + id + "/" + upload.getArgument(1) + "/original.png");
 
         mockMvc.perform(multipart("/api/listings/{id}/assets", id).file(image)
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.assetKeys.length()").value(1));
 
         mockMvc.perform(multipart(PUT, "/api/listings/{id}/assets", id).file(image)
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PENDING"));
 
@@ -108,7 +108,7 @@ public class ListingControllerTest extends AbstractControllerTest {
         verify(assetsService, times(2)).putListingAsset(eq(id), assetIds.capture(), eq("photo.PNG"),
                 any(byte[].class), eq("image/png"));
         UUID replacementId = assetIds.getValue();
-        mockMvc.perform(get("/api/listings/{id}", id).with(authenticatedUser(TEST_EMAIL)))
+        mockMvc.perform(get("/api/listings/{id}", id).with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.assetKeys.length()").value(1))
                 .andExpect(jsonPath("$.assetKeys[0]").value(replacementId.toString()));
@@ -124,39 +124,47 @@ public class ListingControllerTest extends AbstractControllerTest {
         MockMultipartFile unsupported = new MockMultipartFile("images", "photo.svg", "image/svg+xml", new byte[]{1});
 
         mockMvc.perform(multipart("/api/listings/{id}/assets", listing.getId()).file(oversized)
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().is(413));
 
         mockMvc.perform(multipart(PUT, "/api/listings/{id}/assets", listing.getId()).file(valid).file(unsupported)
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isUnsupportedMediaType());
 
         verifyNoInteractions(assetsService, eventPublisher);
     }
 
     @Test
-    public void getAllListingsShouldReturnList() throws Exception {
-        ListingDto dto = ListingDto.builder()
-                .title("Nice Jeans")
-                .price(new BigDecimal("25.50"))
-                .quantity(1)
-                .contactTypes(List.of(ContactType.PARCEL))
-                .condition(Condition.VERY_GOOD)
-                .cityIds(List.of(testCity.getId()))
-                .categoryId(testCategory.getId())
-                .build();
-        
-        mockMvc.perform(post("/api/listings")
-                .with(authenticatedUser(TEST_EMAIL))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+    void listingReadsShouldAllowAnonymousRequests() throws Exception {
+        Listing listing = createTestListing("Nice Jeans", testUser, testCity, testCategory);
 
-        mockMvc.perform(get("/api/listings")
-                        .with(authenticatedUser(TEST_EMAIL)))
+        mockMvc.perform(get("/api/listings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].title").value("Nice Jeans"));
+
+        mockMvc.perform(get("/api/listings/{id}", listing.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Nice Jeans"));
+    }
+
+    @Test
+    void listingWritesShouldRequireAuthentication() throws Exception {
+        UUID id = UUID.randomUUID();
+        MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[]{1});
+
+        mockMvc.perform(post("/api/listings"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/listings/{id}", id))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/listings/{id}", id))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(multipart("/api/listings/{id}/assets", id).file(image))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(multipart(PUT, "/api/listings/{id}/assets", id).file(image))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(assetsService, eventPublisher);
     }
 
     @Test
@@ -172,7 +180,7 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .build();
         
         MvcResult result = mockMvc.perform(post("/api/listings")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andReturn();
@@ -181,7 +189,7 @@ public class ListingControllerTest extends AbstractControllerTest {
         UUID id = UUID.fromString(objectMapper.readTree(response).get("id").asText());
 
         mockMvc.perform(delete("/api/listings/" + id)
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isNoContent());
     }
 }

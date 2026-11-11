@@ -20,6 +20,9 @@ public class User {
     @Id
     private UUID id;
 
+    @Column(name = "cognito_sub", unique = true)
+    private String cognitoSub;
+
     @Column(nullable = false)
     private String firstName;
 

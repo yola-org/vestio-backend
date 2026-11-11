@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.OnboardingStatusDto;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
+import org.app.vestiobackend.security.AuthRequired;
 import org.app.vestiobackend.service.ProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
  * REST controller for managing user profiles.
  * Provides endpoints for onboarding status, retrieving current user profile, and updating preferences.
  */
+@AuthRequired
 @RestController
 @RequestMapping("/api/profile")
 @RequiredArgsConstructor
