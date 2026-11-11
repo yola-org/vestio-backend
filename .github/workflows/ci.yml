@@ -61,7 +61,6 @@ jobs:
     uses: yola-org/shared-workflows/.github/workflows/reusable-docker-ecr.yml@main
     with:
       image-name: vestio/backend
-      platforms: linux/amd64
       version: ${{ needs.version.outputs.version }}
       ecr-registry: ${{ vars.ECR_REGISTRY }}
       aws-region: ${{ vars.AWS_REGION }}
