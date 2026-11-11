@@ -1,0 +1,91 @@
+# Vestio backend pipeline.
+#
+# Shared logic lives in yola-org/shared-workflows. Verification jobs (version,
+# Gradle test & package) run concurrently. Release jobs run on pushes to main.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write # push release tags
+  pull-requests: read # check merged PR for release gate
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: Calculate version
+    permissions:
+      contents: write
+    uses: yola-org/shared-workflows/.github/workflows/reusable-version.yml@main
+    with:
+      tag: false
+      commit-message: ${{ github.event.pull_request.title || '' }}
+
+  gradle:
+    name: Gradle
+    uses: yola-org/shared-workflows/.github/workflows/reusable-gradle.yml@main
+    with:
+      artifact-name: backend-jar
+      artifact-path: build/libs/
+      build-command: ./gradlew bootJar
+
+  release-gate:
+    name: Check release gate
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: yola-org/shared-workflows/.github/workflows/reusable-release-gate.yml@main
+    with:
+      base-branch: main
+      require-merged-pr: false
+
+  docker:
+    name: Build and push image
+    needs: [release-gate, version, gradle]
+    if: >-
+      always() &&
+      needs.release-gate.result == 'success' &&
+      needs.release-gate.outputs.release == 'true' &&
+      needs.version.result == 'success' &&
+      needs.gradle.result == 'success'
+    uses: yola-org/shared-workflows/.github/workflows/reusable-docker-ecr.yml@main
+    with:
+      image-name: vestio/backend
+      platforms: linux/amd64
+      version: ${{ needs.version.outputs.version }}
+      ecr-registry: ${{ vars.ECR_REGISTRY }}
+      aws-region: ${{ vars.AWS_REGION }}
+      artifact-name: backend-jar
+      artifact-path: build/libs
+      build-args: APP_VERSION=${{ needs.version.outputs.version }}
+    secrets:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  tag:
+    name: Tag release
+    needs: [version, docker]
+    if: ${{ needs.docker.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Create and push tag
+        uses: yola-org/shared-workflows/.github/actions/version-tag@main
+        with:
+          version: ${{ needs.version.outputs.version }}
+          git-tag: ${{ needs.version.outputs.git_tag }}
+          token: ${{ secrets.INFRA_GITHUB_TOKEN }}

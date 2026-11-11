@@ -76,3 +76,21 @@ Run the test suite using Gradle:
 ```
 
 Tests use an in-memory H2 database and a dedicated `test` profile.
+
+## GitHub Actions
+
+`.github/workflows/ci.yml` follows the image optimizer pipeline and calls
+`yola-org/shared-workflows` for version calculation, Java 25 tests, packaging,
+and Docker publishing. Pull requests to `main` run verification; pushes to
+`main` also publish `vestio/backend` to ECR and create the release tag after
+publishing succeeds. Manual runs perform verification only.
+
+Configure repository secrets `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and
+`INFRA_GITHUB_TOKEN` (release tagging), plus repository variables `AWS_REGION`
+and `ECR_REGISTRY`, as described in the shared workflows setup guide. The
+shared workflows repository must allow this repository to call its workflows.
+
+Packaging uses `bootJar` so the Docker build receives only the executable
+Spring Boot JAR. The existing GitLab pipeline remains available separately.
+There is no automatic infrastructure bump: `aws-infra` currently has no backend
+deployment or `backend_image_tag` in its `dev` environment.
