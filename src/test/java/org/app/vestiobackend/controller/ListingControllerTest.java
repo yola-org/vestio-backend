@@ -135,28 +135,36 @@ public class ListingControllerTest extends AbstractControllerTest {
     }
 
     @Test
-    public void getAllListingsShouldReturnList() throws Exception {
-        ListingDto dto = ListingDto.builder()
-                .title("Nice Jeans")
-                .price(new BigDecimal("25.50"))
-                .quantity(1)
-                .contactTypes(List.of(ContactType.PARCEL))
-                .condition(Condition.VERY_GOOD)
-                .cityIds(List.of(testCity.getId()))
-                .categoryId(testCategory.getId())
-                .build();
-        
-        mockMvc.perform(post("/api/listings")
-                .with(authenticatedUser(TEST_EMAIL))
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(dto)))
-                .andExpect(status().isOk());
+    void listingReadsShouldAllowAnonymousRequests() throws Exception {
+        Listing listing = createTestListing("Nice Jeans", testUser, testCity, testCategory);
 
-        mockMvc.perform(get("/api/listings")
-                        .with(authenticatedUser(TEST_EMAIL)))
+        mockMvc.perform(get("/api/listings"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].title").value("Nice Jeans"));
+
+        mockMvc.perform(get("/api/listings/{id}", listing.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Nice Jeans"));
+    }
+
+    @Test
+    void listingWritesShouldRequireAuthentication() throws Exception {
+        UUID id = UUID.randomUUID();
+        MockMultipartFile image = new MockMultipartFile("images", "photo.png", "image/png", new byte[]{1});
+
+        mockMvc.perform(post("/api/listings"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put("/api/listings/{id}", id))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/listings/{id}", id))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(multipart("/api/listings/{id}/assets", id).file(image))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(multipart(PUT, "/api/listings/{id}/assets", id).file(image))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(assetsService, eventPublisher);
     }
 
     @Test
