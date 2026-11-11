@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-listing-asset-keys
+      author: vestio
+      changes:
+        - createTable:
+            tableName: listing_asset_keys
+            columns:
+              - column:
+                  name: listing_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_asset_keys_listing
+                    references: listings(id)
+              - column:
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: asset_key
+                  type: UUID
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: listing_asset_keys
+            columnNames: listing_id, position
+            constraintName: pk_listing_asset_keys

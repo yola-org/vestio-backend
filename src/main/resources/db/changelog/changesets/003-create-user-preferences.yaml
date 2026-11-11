@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 002-create-user-preferences-table
+      id: 003-create-user-preferences
       author: youssef
       changes:
         - createTable:
@@ -28,3 +28,6 @@ databaseChangeLog:
                     foreignKeyName: fk_user_preference_category
                     referencedTableName: categories
                     referencedColumnNames: id
+              - column:
+                  name: gender
+                  type: VARCHAR(50)

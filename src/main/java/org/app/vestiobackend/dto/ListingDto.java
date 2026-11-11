@@ -1,6 +1,8 @@
 package org.app.vestiobackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
@@ -31,9 +33,15 @@ public class ListingDto {
     @Positive(message = "Price must be positive")
     private BigDecimal price;
 
+    private String gender;
+
+    private UUID brandId;
+
     private List<String> colors;
 
-    @NotNull(message = "Contact types are required")
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private List<UUID> assetKeys;
+
     private List<ContactType> contactTypes;
 
     @NotNull(message = "Condition is required")
@@ -45,15 +53,13 @@ public class ListingDto {
     @Positive(message = "Quantity must be positive")
     private Integer quantity;
 
-    @NotNull(message = "City IDs are required")
+    @NotEmpty(message = "At least one city is required")
     private List<UUID> cityIds;
 
     @NotNull(message = "Category ID is required")
     private UUID categoryId;
 
-    private List<String> cityNames;
     private String categoryName;
     private List<UUID> sizeIds;
-    private List<String> sizeNames;
     private UUID userId;
 }

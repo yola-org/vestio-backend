@@ -1,11 +1,13 @@
 package org.app.vestiobackend.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.service.ListingService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -30,6 +32,18 @@ public class ListingController {
     @PostMapping
     public ResponseEntity<ListingDto> createListing(@Valid @RequestBody ListingDto dto) {
         return ResponseEntity.ok(listingService.createListing(dto));
+    }
+
+    @PostMapping(path = "/{id}/assets", consumes = "multipart/form-data")
+    public ResponseEntity<ListingDto> uploadListingAssets(@PathVariable UUID id,
+                                                           @RequestParam("images") @Size(min = 1, message = "At least one non-empty image is required") List<MultipartFile> images) {
+        return ResponseEntity.ok(listingService.uploadAssets(id, images));
+    }
+
+    @PutMapping(path = "/{id}/assets", consumes = "multipart/form-data")
+    public ResponseEntity<ListingDto> replaceListingAssets(@PathVariable UUID id,
+                                                          @RequestParam("images") @Size(min = 1, message = "At least one non-empty image is required") List<MultipartFile> images) {
+        return ResponseEntity.ok(listingService.replaceAssets(id, images));
     }
 
     /**

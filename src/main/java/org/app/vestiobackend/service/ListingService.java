@@ -10,12 +10,13 @@ import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.ListingRepository;
-import org.app.vestiobackend.repository.UserRepository;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -29,12 +30,12 @@ import java.util.stream.Collectors;
 public class ListingService {
 
     private final ListingRepository listingRepository;
-    private final UserRepository userRepository;
     private final CityRepository cityRepository;
     private final CategoryRepository categoryRepository;
     private final org.app.vestiobackend.repository.SizeRepository sizeRepository;
     private final ListingMapper listingMapper;
     private final UserContext userContext;
+    private final AssetService assetService;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -70,9 +71,8 @@ public class ListingService {
             listing.setSizes(new java.util.ArrayList<>(sizes));
         }
 
-        if (listing.getStatus() == null) {
-            listing.setStatus(ListingStatus.AVAILABLE);
-        }
+        // Listing status is controlled by the asset workflow, never by the request body.
+        listing.setStatus(ListingStatus.AWAITING_ASSETS);
 
         Listing saved = listingRepository.save(listing);
         return listingMapper.toDto(saved);
@@ -85,6 +85,7 @@ public class ListingService {
      * @return The listing as a {@link ListingDto}.
      * @throws ResourceNotFoundException if the listing is not found.
      */
+    @Transactional(readOnly = true)
     public ListingDto getListing(UUID id) {
         Listing listing = listingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
@@ -96,6 +97,7 @@ public class ListingService {
      *
      * @return A list of {@link ListingDto}s.
      */
+    @Transactional(readOnly = true)
     public List<ListingDto> getAllListings() {
         return listingRepository.findAll().stream()
                 .map(listingMapper::toDto)
@@ -114,7 +116,7 @@ public class ListingService {
      */
     @Transactional
     public ListingDto updateListing(UUID id, ListingDto dto) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findListingById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();
@@ -122,17 +124,7 @@ public class ListingService {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to update this listing");
         }
 
-        listing.setTitle(dto.getTitle());
-        listing.setDescription(dto.getDescription());
-        listing.setPrice(dto.getPrice());
-        listing.setColors(dto.getColors() != null ? new java.util.ArrayList<>(dto.getColors()) : null);
-        listing.setContactTypes(dto.getContactTypes() != null ? new java.util.ArrayList<>(dto.getContactTypes()) : null);
-        listing.setCondition(dto.getCondition());
-        listing.setQuantity(dto.getQuantity());
-
-        if (dto.getStatus() != null) {
-            listing.setStatus(dto.getStatus());
-        }
+        listingMapper.updateListingFromDto(dto, listing);
 
         if (dto.getCityIds() != null) {
             List<City> cities = cityRepository.findAllById(dto.getCityIds());
@@ -159,6 +151,41 @@ public class ListingService {
         return listingMapper.toDto(listingRepository.save(listing));
     }
 
+    @Transactional
+    public ListingDto uploadAssets(UUID id, List<MultipartFile> images) {
+        return saveAssets(id, images, false);
+    }
+
+    @Transactional
+    public ListingDto replaceAssets(UUID id, List<MultipartFile> images) {
+        return saveAssets(id, images, true);
+    }
+
+    private ListingDto saveAssets(UUID id, List<MultipartFile> images, boolean replace) {
+        Listing listing = listingRepository.findListingById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
+
+        User currentUser = userContext.getCurrentUser();
+        if (!listing.getUser().getId().equals(currentUser.getId())) {
+            throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to upload listing assets");
+        }
+
+        List<AssetService.UploadedAsset> assets = assetService.uploadListingImages(listing.getId(), images);
+        List<UUID> assetIds = assets.stream().map(AssetService.UploadedAsset::id).toList();
+        if (listing.getAssetKeys() == null) {
+            listing.setAssetKeys(new ArrayList<>());
+        }
+        if (replace) {
+            listing.getAssetKeys().clear();
+        }
+        listing.getAssetKeys().addAll(assetIds);
+        listing.setStatus(ListingStatus.PENDING);
+        listingRepository.flush();
+        ListingDto result = listingMapper.toDto(listing);
+        assetService.queueListingImageOptimization(currentUser.getId(), listing.getId(), assets);
+        return result;
+    }
+
     /**
      * Deletes an existing listing.
      * Verifies that the currently authenticated user is the owner of the listing.
@@ -169,7 +196,7 @@ public class ListingService {
      */
     @Transactional
     public void deleteListing(UUID id) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findListingById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();

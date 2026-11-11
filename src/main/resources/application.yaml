@@ -13,12 +13,22 @@ spring:
         format_sql: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  servlet:
+    multipart:
+      max-file-size: ${app.image-upload.max-file-size}
+      max-request-size: ${app.image-upload.max-request-size}
   security:
     oauth2:
       resourceserver:
         jwt:
           issuer-uri: ${COGNITO_ISSUER_URI}
           jwk-set-uri: ${COGNITO_JWK_SET_URI}
+
+app:
+  image-upload:
+    max-file-size: 10MB
+    max-request-size: 50MB
+    allowed-extensions: [jpg, jpeg, png, webp]
 
 cognito:
   # Values are loaded from AWS Secrets Manager at startup
@@ -30,3 +40,14 @@ cognito:
   # Note: Access and ID tokens in Cognito have a maximum validity of 24 hours.
   # Refresh tokens can be configured for longer durations (e.g., 48 hours or more).
   token-expiration-seconds: 172800
+
+aws:
+  # Uses the default AWS credentials provider chain (environment, profile, or IAM role).
+  region: ${AWS_REGION:ca-central-1}
+  s3:
+    assets-bucket: ${S3_ASSETS_BUCKET}
+    users-prefix: users
+    listings-prefix: listings
+  sqs:
+    queues:
+      image-processing: ${SQS_IMAGE_OPTIMIZATION_QUEUE_URL}
