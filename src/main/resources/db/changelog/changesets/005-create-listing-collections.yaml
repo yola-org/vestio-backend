@@ -1,0 +1,99 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-listing-collections
+      author: youssef
+      changes:
+        - createTable:
+            tableName: listing_colors
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_colors_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: color
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: listing_contact_types
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_contact_types_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: contact_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: listing_cities
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_cities_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: city_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_cities_city
+                    referencedTableName: cities
+                    referencedColumnNames: id
+
+        - createTable:
+            tableName: listing_sizes
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_sizes_listing
+                    referencedTableName: listings
+                    referencedColumnNames: id
+              - column:
+                  name: size_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_sizes_size
+                    referencedTableName: sizes
+                    referencedColumnNames: id
+
+        - createIndex:
+            indexName: idx_listing_colors_color
+            tableName: listing_colors
+            columns:
+              - column:
+                  name: color
+
+        - createIndex:
+            indexName: idx_listing_contact_types_type
+            tableName: listing_contact_types
+            columns:
+              - column:
+                  name: contact_type
+
+        - createIndex:
+            indexName: idx_listing_cities_city
+            tableName: listing_cities
+            columns:
+              - column:
+                  name: city_id

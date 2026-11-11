@@ -1,17 +1,13 @@
 databaseChangeLog:
   - include:
-      file: db/changelog/changesets/001-create-users-table.yaml
+      file: db/changelog/changesets/001-create-users.yaml
   - include:
-      file: db/changelog/changesets/003-create-listing-entities.yaml
+      file: db/changelog/changesets/002-create-catalog-tables.yaml
   - include:
-      file: db/changelog/changesets/002-create-user-preferences-table.yaml
+      file: db/changelog/changesets/003-create-user-preferences.yaml
   - include:
-      file: db/changelog/changesets/006-add-fields-to-user-preferences.yaml
+      file: db/changelog/changesets/004-create-listings.yaml
   - include:
-      file: db/changelog/changesets/007-remove-city-from-user-preferences.yaml
+      file: db/changelog/changesets/005-create-listing-collections.yaml
   - include:
-      file: db/changelog/changesets/008-add-sizes-and-size-groups.yaml
-  - include:
-      file: db/changelog/changesets/009-listing-multiple-contact-types.yaml
-  - include:
-      file: db/changelog/changesets/010-listing-multiple-cities-sizes.yaml
+      file: db/changelog/changesets/006-create-listing-asset-keys.yaml

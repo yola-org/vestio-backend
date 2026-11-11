@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 008-add-sizes-and-size-groups
+      id: 002-create-catalog-tables
       author: youssef
       changes:
         - createTable:
@@ -42,24 +42,53 @@ databaseChangeLog:
                     referencedTableName: size_groups
                     referencedColumnNames: id
 
-        - addColumn:
+        - createTable:
+            tableName: cities
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+
+        - createTable:
             tableName: categories
             columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(255)
+              - column:
+                  name: image
+                  type: VARCHAR(255)
+              - column:
+                  name: parent_id
+                  type: UUID
+                  constraints:
+                    foreignKeyName: fk_category_parent
+                    referencedTableName: categories
+                    referencedColumnNames: id
               - column:
                   name: size_group_id
                   type: UUID
                   constraints:
                     foreignKeyName: fk_category_size_group
                     referencedTableName: size_groups
-                    referencedColumnNames: id
-
-        - addColumn:
-            tableName: listings
-            columns:
-              - column:
-                  name: size_id
-                  type: UUID
-                  constraints:
-                    foreignKeyName: fk_listing_size
-                    referencedTableName: sizes
                     referencedColumnNames: id
