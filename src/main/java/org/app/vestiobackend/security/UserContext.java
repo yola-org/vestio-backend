@@ -9,6 +9,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
+import java.util.Optional;
+
 /**
  * Component providing access to the current authenticated user's context.
  * It abstracts the retrieval of user information from the security context,
@@ -30,27 +33,15 @@ public class UserContext {
     public String getCurrentUserEmail() {
         Object principal = getPrincipal();
         if (principal instanceof Jwt) {
-            Jwt jwt = (Jwt) principal;
-            String email = jwt.getClaimAsString("email");
-            if (email != null) {
-                return email.toLowerCase();
-            }
-            // Fallback to 'username' claim (Cognito Access Tokens)
-            String username = jwt.getClaimAsString("username");
-            if (username != null) {
-                return username.toLowerCase();
-            }
-            // Fallback to subject
-            String sub = jwt.getSubject();
-            return sub != null ? sub.toLowerCase() : null;
-        } else if (principal instanceof String) {
-            return ((String) principal).toLowerCase();
+            return getCurrentUser().getEmail();
+        } else if (principal instanceof String email) {
+            return email.toLowerCase(Locale.ROOT);
         }
 
         // Final fallback to authentication name
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getName() != null) {
-            return auth.getName().toLowerCase();
+            return auth.getName().toLowerCase(Locale.ROOT);
         }
 
         throw new RuntimeException("Unknown principal type: " + (principal != null ? principal.getClass() : "null"));
@@ -103,8 +94,14 @@ public class UserContext {
      * @throws ResourceNotFoundException if the user is not found in the local database.
      */
     public User getCurrentUser() {
-        String email = getCurrentUserEmail();
-        return userRepository.findByEmail(email)
+        Optional<User> user;
+        if (getPrincipal() instanceof Jwt jwt) {
+            String sub = jwt.getSubject();
+            user = sub == null || sub.isBlank() ? Optional.empty() : userRepository.findByCognitoSub(sub);
+        } else {
+            user = userRepository.findByEmail(getCurrentUserEmail());
+        }
+        return user
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "User not found"));
     }
 }

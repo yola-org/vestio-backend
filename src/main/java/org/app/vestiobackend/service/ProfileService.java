@@ -45,10 +45,7 @@ public class ProfileService {
      * @throws ResourceNotFoundException if the user is not found in the local database.
      */
     public OnboardingStatusDto getOnboardingStatus() {
-        String email = userContext.getCurrentUserEmail();
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "User not found in local database"));
+        User user = userContext.getCurrentUser();
 
         boolean additionalDataAdded = user.getAge() != null || user.getGender() != null || user.getCity() != null;
         boolean preferencesAdded = !userPreferenceRepository.findByUser(user).isEmpty();

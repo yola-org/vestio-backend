@@ -7,8 +7,6 @@ spring:
       - aws-secretsmanager:DEV/COGNITO/ISSUER_URI?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/REGION?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/USER_POOL_ID?prefix=COGNITO.
-      - aws-secretsmanager:DEV/S3/ASSETS_BUCKET_NAME
-      - aws-secretsmanager:DEV/SQS/IMAGE_OPTIMIZATION_QUEUE_URL
   datasource:
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -42,12 +40,12 @@ cognito:
 aws:
   region: ${AWS_REGION:ca-central-1}
   s3:
-    assets-bucket: ${ASSETS_BUCKET_NAME}
+    assets-bucket: vestio-dev-assets
     users-prefix: users
     listings-prefix: listings
   sqs:
     queues:
-      image-processing: ${IMAGE_OPTIMIZATION_QUEUE_URL}
+      image-processing: https://sqs.ca-central-1.amazonaws.com/187692046882/vestio-dev-image-optimizer
 
 logging:
   level:

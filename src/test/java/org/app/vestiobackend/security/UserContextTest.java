@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.UUID;
 
@@ -23,8 +22,8 @@ public class UserContextTest extends AbstractServiceTest {
     private UserContext userContext;
 
     @Test
-    public void getCurrentUserEmailShouldReturnEmailFromJwt() {
-        // SetupSecurityContext already does this with JWT in AbstractServiceTest
+    public void getCurrentUserEmailShouldReturnEmailFromUserResolvedBySub() {
+        setupSecurityContext(testUser.getCognitoSub(), testUser.getCognitoSub());
         String email = userContext.getCurrentUserEmail();
         assertThat(email).isEqualTo(TEST_EMAIL);
     }
@@ -39,7 +38,7 @@ public class UserContextTest extends AbstractServiceTest {
     @Test
     public void getCurrentUserIdShouldReturnSubFromJwt() {
         String testSub = UUID.randomUUID().toString();
-        setupSecurityContextWithJwt(TEST_EMAIL, testSub);
+        setupSecurityContext(TEST_EMAIL, testSub);
         String userId = userContext.getCurrentUserId();
         assertThat(userId).isEqualTo(testSub);
     }
@@ -47,9 +46,9 @@ public class UserContextTest extends AbstractServiceTest {
     @Test
     public void getClaimShouldReturnClaimValueFromJwt() {
         String testSub = UUID.randomUUID().toString();
-        setupSecurityContextWithJwt(TEST_EMAIL, testSub);
-        String email = userContext.getClaim("email");
-        assertThat(email).isEqualTo(TEST_EMAIL);
+        setupSecurityContext(TEST_EMAIL, testSub);
+        String username = userContext.getClaim("username");
+        assertThat(username).isEqualTo(TEST_EMAIL);
     }
 
     @Test
@@ -61,22 +60,8 @@ public class UserContextTest extends AbstractServiceTest {
 
     @Test
     public void getCurrentUserShouldThrowExceptionWhenUserNotFound() {
-        setupSecurityContext("nonexistent@example.com");
+        setupSecurityContext(TEST_EMAIL, UUID.randomUUID().toString());
         assertThrows(ResourceNotFoundException.class, () -> userContext.getCurrentUser());
-    }
-
-    private void setupSecurityContextWithJwt(String email, String sub) {
-        Jwt jwt = mock(Jwt.class);
-        when(jwt.getClaimAsString("email")).thenReturn(email);
-        when(jwt.getClaimAsString("sub")).thenReturn(sub);
-
-        Authentication authentication = mock(Authentication.class);
-        when(authentication.getPrincipal()).thenReturn(jwt);
-
-        SecurityContext securityContext = mock(SecurityContext.class);
-        when(securityContext.getAuthentication()).thenReturn(authentication);
-
-        SecurityContextHolder.setContext(securityContext);
     }
 
     private void setupSecurityContextWithString(String email) {

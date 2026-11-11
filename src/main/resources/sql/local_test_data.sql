@@ -106,7 +106,7 @@ INSERT INTO listing_cities (listing_id, city_id) VALUES ('b0eebc99-9c0b-4ef8-bb6
 INSERT INTO listing_sizes (listing_id, size_id) VALUES ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a35', 'a340d79b-4677-5058-a4d5-53dca0d094d0');
 INSERT INTO listing_contact_types (listing_id, contact_type) VALUES ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a35', 'DELIVERY');
 
-INSERT INTO listings (id, title, description, price, quantity, condition, status, user_id, category_id, created_at, updated_at) VALUES ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a36', 'Sneakers', 'Classic white sneakers.', 60.00, 1, 'GOOD', 'RESERVED', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', 'deeef5b3-1228-51a7-85e5-0f6cc5406354', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+INSERT INTO listings (id, title, description, price, quantity, condition, status, user_id, category_id, created_at, updated_at) VALUES ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a36', 'Sneakers', 'Classic white sneakers.', 60.00, 1, 'GOOD', 'AVAILABLE', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', 'deeef5b3-1228-51a7-85e5-0f6cc5406354', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 INSERT INTO listing_cities (listing_id, city_id) VALUES ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a36', '13464db4-c346-5288-b2ae-97df62bc79ca');
 INSERT INTO listing_contact_types (listing_id, contact_type) VALUES ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a36', 'DELIVERY');
 

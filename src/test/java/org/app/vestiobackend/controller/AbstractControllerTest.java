@@ -82,6 +82,7 @@ public abstract class AbstractControllerTest {
     private void initializeDefaultData() {
         testUser = User.builder()
                 .id(UUID.randomUUID())
+                .cognitoSub(UUID.randomUUID().toString())
                 .email(TEST_EMAIL)
                 .firstName("Test")
                 .lastName("User")
@@ -145,8 +146,8 @@ public abstract class AbstractControllerTest {
         sizeGroupRepository.deleteAll();
     }
 
-    protected RequestPostProcessor authenticatedUser(String email) {
+    protected RequestPostProcessor authenticatedUser(User user) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt.claim("email", email));
+                .jwt(jwt -> jwt.subject(user.getCognitoSub()).claim("username", user.getEmail()));
     }
 }

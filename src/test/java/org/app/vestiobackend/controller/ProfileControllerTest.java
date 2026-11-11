@@ -28,7 +28,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
                 .build());
 
         mockMvc.perform(get("/api/profile/onboarding-status")
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountCreated").value(true))
                 .andExpect(jsonPath("$.additionalDataAdded").value(true))
@@ -44,7 +44,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
         userRepository.save(testUser);
 
         mockMvc.perform(get("/api/profile")
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value(TEST_EMAIL))
                 .andExpect(jsonPath("$.firstName").value(testUser.getFirstName()))
@@ -61,13 +61,13 @@ public class ProfileControllerTest extends AbstractControllerTest {
         dto.setGender("MALE");
 
         mockMvc.perform(post("/api/profile/preferences")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
         
         mockMvc.perform(get("/api/profile/preferences")
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gender").value("MALE"))
                 .andExpect(jsonPath("$.categoryIds[0]").value(testCategory.getId().toString()))
@@ -86,7 +86,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
                 .build();
 
         mockMvc.perform(put("/api/profile")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateDto)))
                 .andExpect(status().isOk())
@@ -109,7 +109,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
                 .build();
 
         mockMvc.perform(put("/api/profile")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(cityDto)))
                 .andExpect(status().isOk())
@@ -121,7 +121,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
                 .build();
 
         mockMvc.perform(put("/api/profile")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(genderDto)))
                 .andExpect(status().isOk())
@@ -134,21 +134,21 @@ public class ProfileControllerTest extends AbstractControllerTest {
         prefDto.setGender("FEMALE");
 
         mockMvc.perform(post("/api/profile/preferences")
-                        .with(authenticatedUser(TEST_EMAIL))
+                        .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(prefDto)))
                 .andExpect(status().isOk());
 
         // 4. Verify Preferences
         mockMvc.perform(get("/api/profile/preferences")
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gender").value("FEMALE"))
                 .andExpect(jsonPath("$.categoryIds[0]").value(testCategory.getId().toString()));
 
         // 5. Verify Onboarding Status
         mockMvc.perform(get("/api/profile/onboarding-status")
-                        .with(authenticatedUser(TEST_EMAIL)))
+                        .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountCreated").value(true))
                 .andExpect(jsonPath("$.additionalDataAdded").value(true))
