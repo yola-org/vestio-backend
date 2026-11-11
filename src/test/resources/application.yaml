@@ -1,4 +1,9 @@
 spring:
+  cloud:
+    aws:
+      secretsmanager:
+        # Tests use the literal settings below and do not fetch AWS secrets.
+        enabled: false
   main:
     allow-bean-definition-overriding: true
   datasource:
