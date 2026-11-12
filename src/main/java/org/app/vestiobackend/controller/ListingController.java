@@ -1,6 +1,7 @@
 package org.app.vestiobackend.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
@@ -133,4 +134,13 @@ public class ListingController {
     public ResponseEntity<List<ListingDto>> getFavorites() {
         return ResponseEntity.ok(listingService.getFavorites());
     }
+
+    @AuthRequired
+    @GetMapping("/pending")
+    public ResponseEntity<List<ListingDto>> getPendingListingsForUser(
+            @RequestParam(defaultValue = "12") @Min(1) int size,
+            @RequestParam(defaultValue = "0") @Min(0) int page) {
+        return ResponseEntity.ok(listingService.getPendingListingsForUser(size, page));
+    }
+
 }

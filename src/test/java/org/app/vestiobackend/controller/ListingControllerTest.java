@@ -5,6 +5,7 @@ import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.entity.enums.Condition;
 import org.app.vestiobackend.entity.enums.ContactType;
+import org.app.vestiobackend.entity.enums.ListingStatus;
 import org.app.vestiobackend.service.S3AssetsService;
 import org.app.vestiobackend.service.SqsEventPublisher;
 import org.junit.jupiter.api.Test;
@@ -273,6 +274,60 @@ public class ListingControllerTest extends AbstractControllerTest {
         mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void pendingListingsShouldRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/api/listings/pending"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void pendingListingsShouldReturnOnlyPendingListingsOwnedByTheCurrentUser() throws Exception {
+        Listing ownPending = createPendingListing("My pending listing", testUser);
+        createPendingListing("Another user's pending listing", createSeller());
+        createTestListing("My available listing", testUser, testCity, testCategory);
+
+        mockMvc.perform(get("/api/listings/pending").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(ownPending.getId().toString()))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+    }
+
+    @Test
+    void pendingListingsShouldPaginateNewestFirst() throws Exception {
+        Listing older = createPendingListing("Older listing", testUser);
+        Listing newer = createPendingListing("Newer listing", testUser);
+
+        mockMvc.perform(get("/api/listings/pending").param("size", "1").param("page", "0")
+                        .with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(newer.getId().toString()));
+        mockMvc.perform(get("/api/listings/pending").param("size", "1").param("page", "1")
+                        .with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(older.getId().toString()));
+        mockMvc.perform(get("/api/listings/pending").param("size", "1").param("page", "2")
+                        .with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void pendingListingsShouldRejectInvalidPagination() throws Exception {
+        mockMvc.perform(get("/api/listings/pending").param("size", "0").with(authenticatedUser(testUser)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/listings/pending").param("page", "-1").with(authenticatedUser(testUser)))
+                .andExpect(status().isBadRequest());
+    }
+
+    private Listing createPendingListing(String title, User user) {
+        Listing listing = createTestListing(title, user, testCity, testCategory);
+        listing.setStatus(ListingStatus.PENDING);
+        return listingRepository.save(listing);
     }
 
     private User createSeller() {

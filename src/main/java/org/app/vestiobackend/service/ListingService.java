@@ -14,6 +14,9 @@ import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.repository.ListingRepository;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -269,5 +272,13 @@ public class ListingService {
                     "Cannot change the favorite status of your own listing");
         }
         return listing;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ListingDto> getPendingListingsForUser(int size, int page) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        return listingRepository.findByUserAndStatus(userContext.getCurrentUser(), ListingStatus.PENDING, pageable).stream()
+                .map(listingMapper::toDto)
+                .toList();
     }
 }
