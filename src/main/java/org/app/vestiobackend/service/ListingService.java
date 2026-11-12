@@ -9,6 +9,7 @@ import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
+import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.repository.ListingRepository;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
@@ -36,6 +37,7 @@ public class ListingService {
     private final ListingMapper listingMapper;
     private final UserContext userContext;
     private final AssetService assetService;
+    private final FavoriteRepository favoriteRepository;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -205,5 +207,57 @@ public class ListingService {
         }
 
         listingRepository.delete(listing);
+    }
+
+    /**
+     * Adds a listing to the current user's favorites if it is not already saved.
+     *
+     * @param id The UUID of the listing.
+     * @throws ResourceNotFoundException if the listing is not found.
+     */
+    @Transactional
+    public void addFavorite(UUID id) {
+        User user = userContext.getCurrentUser();
+        Listing listing = getListingForFavoriteMutation(id);
+        if (favoriteRepository.existsByUserAndListing(user, listing)) {
+            return;
+        }
+
+        Favorite favorite = new Favorite();
+        favorite.setUser(user);
+        favorite.setListing(listing);
+        favoriteRepository.save(favorite);
+    }
+
+    /**
+     * Removes a listing from the current user's favorites if it was saved.
+     *
+     * @param id The UUID of the listing.
+     * @throws ResourceNotFoundException if the listing is not found.
+     */
+    @Transactional
+    public void removeFavorite(UUID id) {
+        User user = userContext.getCurrentUser();
+        Listing listing = getListingForFavoriteMutation(id);
+        favoriteRepository.deleteByUserAndListing(user, listing);
+    }
+
+    /**
+     * Retrieves the current user's favorited listings in reverse chronological order.
+     *
+     * @return The saved listings as {@link ListingDto}s.
+     */
+    @Transactional(readOnly = true)
+    public List<ListingDto> getFavorites() {
+        User user = userContext.getCurrentUser();
+        return favoriteRepository.findByUser(user).stream()
+                .map(Favorite::getListing)
+                .map(listingMapper::toDto)
+                .toList();
+    }
+
+    private Listing getListingForFavoriteMutation(UUID id) {
+        return listingRepository.findForFavoriteMutationById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
     }
 }

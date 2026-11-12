@@ -11,3 +11,5 @@ databaseChangeLog:
       file: db/changelog/changesets/005-create-listing-collections.yaml
   - include:
       file: db/changelog/changesets/006-create-listing-asset-keys.yaml
+  - include:
+      file: db/changelog/changesets/007-create-favorites.yaml
