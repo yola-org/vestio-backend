@@ -5,6 +5,7 @@ import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.*;
 import org.app.vestiobackend.entity.enums.ListingStatus;
 import org.app.vestiobackend.http.errors.ErrorCode;
+import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.repository.CategoryRepository;
@@ -214,11 +215,12 @@ public class ListingService {
      *
      * @param id The UUID of the listing.
      * @throws ResourceNotFoundException if the listing is not found.
+     * @throws BadRequestException if the listing belongs to the current user.
      */
     @Transactional
     public void addFavorite(UUID id) {
         User user = userContext.getCurrentUser();
-        Listing listing = getListingForFavoriteMutation(id);
+        Listing listing = getListingForFavoriteMutation(id, user);
         if (favoriteRepository.existsByUserAndListing(user, listing)) {
             return;
         }
@@ -234,11 +236,12 @@ public class ListingService {
      *
      * @param id The UUID of the listing.
      * @throws ResourceNotFoundException if the listing is not found.
+     * @throws BadRequestException if the listing belongs to the current user.
      */
     @Transactional
     public void removeFavorite(UUID id) {
         User user = userContext.getCurrentUser();
-        Listing listing = getListingForFavoriteMutation(id);
+        Listing listing = getListingForFavoriteMutation(id, user);
         favoriteRepository.deleteByUserAndListing(user, listing);
     }
 
@@ -256,8 +259,15 @@ public class ListingService {
                 .toList();
     }
 
-    private Listing getListingForFavoriteMutation(UUID id) {
-        return listingRepository.findForFavoriteMutationById(id)
+    private Listing getListingForFavoriteMutation(UUID id, User user) {
+        Listing listing = listingRepository.findForFavoriteMutationById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
+
+        if (listing.getUser().getId().equals(user.getId())) {
+            throw new BadRequestException(
+                    ErrorCode.ERR_CANNOT_FAVORITE_OWN_LISTING,
+                    "Cannot change the favorite status of your own listing");
+        }
+        return listing;
     }
 }
