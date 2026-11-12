@@ -77,6 +77,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
                 .authenticationResult(AuthenticationResultType.builder()
                         .idToken("test-id-token")
                         .accessToken("test-access-token")
+                        .refreshToken("test-refresh-token")
                         .expiresIn(3600)
                         .tokenType("Bearer")
                         .build())
@@ -92,9 +93,43 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
 
         assertEquals("test-id-token", result.getIdToken());
         assertEquals("test-access-token", result.getAccessToken());
+        assertEquals("test-refresh-token", result.getRefreshToken());
         verify(cognitoClient).adminInitiateAuth(any(AdminInitiateAuthRequest.class));
         entityManager.clear();
         assertEquals(user.getId(), userRepository.findByCognitoSub(sub).orElseThrow().getId());
+    }
+
+    @Test
+    public void refreshShouldExchangeTheTokenWithCognito() {
+        GetTokensFromRefreshTokenRequest request = GetTokensFromRefreshTokenRequest.builder()
+                .clientId("test-client-id")
+                .clientSecret("test-client-secret")
+                .refreshToken("original-refresh")
+                .build();
+        when(cognitoClient.getTokensFromRefreshToken(request))
+                .thenReturn(GetTokensFromRefreshTokenResponse.builder()
+                        .authenticationResult(AuthenticationResultType.builder()
+                                .accessToken("refreshed-access")
+                                .idToken("refreshed-id")
+                                .refreshToken("rotated-refresh")
+                                .expiresIn(3600)
+                                .tokenType("Bearer")
+                                .build())
+                        .build());
+
+        JwtResponseDto result = authService.refresh("original-refresh");
+
+        assertEquals("refreshed-access", result.getAccessToken());
+        assertEquals("refreshed-id", result.getIdToken());
+        assertEquals("rotated-refresh", result.getRefreshToken());
+    }
+
+    @Test
+    public void refreshShouldRejectAnInvalidCognitoToken() {
+        when(cognitoClient.getTokensFromRefreshToken(any(GetTokensFromRefreshTokenRequest.class)))
+                .thenThrow(NotAuthorizedException.builder().build());
+
+        assertThrows(UnAuthorizedException.class, () -> authService.refresh("expired-refresh"));
     }
 
     @Test

@@ -98,7 +98,7 @@ public class AuthService {
      * Uses Cognito's ADMIN_NO_SRP_AUTH flow.
      *
      * @param request The login request containing email and password.
-     * @return The JWT response containing id and access tokens.
+     * @return The JWT response containing ID, access, and refresh tokens.
      * @throws UnAuthorizedException if the user is not found in the local database or credentials are invalid.
      */
     public JwtResponseDto login(LoginRequestDto request) {
@@ -125,15 +125,34 @@ public class AuthService {
                 linkExistingUser(user, result.accessToken());
             }
             
-            return JwtResponseDto.builder()
-                    .accessToken(result.accessToken())
-                    .idToken(result.idToken())
-                    .expiresIn(result.expiresIn().longValue())
-                    .tokenType(result.tokenType())
-                    .build();
+            return toJwtResponse(result);
         } catch (UserNotFoundException | NotAuthorizedException e) {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "User not found or invalid credentials.");
         }
+    }
+
+    public JwtResponseDto refresh(String refreshToken) {
+        GetTokensFromRefreshTokenRequest request = GetTokensFromRefreshTokenRequest.builder()
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .refreshToken(refreshToken)
+                .build();
+
+        try {
+            return toJwtResponse(cognitoClient.getTokensFromRefreshToken(request).authenticationResult());
+        } catch (NotAuthorizedException | UserNotFoundException | RefreshTokenReuseException e) {
+            throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Invalid or expired refresh token.");
+        }
+    }
+
+    private JwtResponseDto toJwtResponse(AuthenticationResultType result) {
+        return JwtResponseDto.builder()
+                .accessToken(result.accessToken())
+                .idToken(result.idToken())
+                .refreshToken(result.refreshToken())
+                .expiresIn(result.expiresIn().longValue())
+                .tokenType(result.tokenType())
+                .build();
     }
 
     private void linkExistingUser(User user, String accessToken) {

@@ -4,8 +4,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.JwtResponseDto;
 import org.app.vestiobackend.dto.LoginRequestDto;
+import org.app.vestiobackend.dto.RefreshTokenRequestDto;
 import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.service.AuthService;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for authentication operations.
- * Provides endpoints for user signup and login.
+ * Provides endpoints for user signup, login, and token refresh.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -44,6 +46,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<JwtResponseDto> login(@Valid @RequestBody LoginRequestDto request) {
         JwtResponseDto response = authService.login(request);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<JwtResponseDto> refresh(@Valid @RequestBody RefreshTokenRequestDto request) {
+        JwtResponseDto response = authService.refresh(request.getRefreshToken());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(response);
     }
 }
