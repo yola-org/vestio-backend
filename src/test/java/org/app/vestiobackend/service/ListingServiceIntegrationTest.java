@@ -17,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -124,6 +125,51 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
     @Test
     public void getListingWithNonExistentIdShouldThrowException() {
         assertThrows(ResourceNotFoundException.class, () -> listingService.getListing(UUID.randomUUID()));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void getPendingListingsShouldFilterByCurrentUserAndStatusAndMapListingDetails() {
+        Listing pending = createPendingListing("My pending listing", testUser);
+        User otherUser = createTestUser("other@example.com");
+        Listing otherPending = createPendingListing("Other pending listing", otherUser);
+        createTestListing("My available listing", testUser, testCity, testCategory);
+
+        List<ListingDto> listings = listingService.getPendingListingsForUser(12, 0);
+
+        assertEquals(1, listings.size());
+        ListingDto result = listings.getFirst();
+        assertEquals(pending.getId(), result.getId());
+        assertEquals(testUser.getId(), result.getUserId());
+        assertEquals(ListingStatus.PENDING, result.getStatus());
+        assertEquals(testCategory.getId(), result.getCategoryId());
+        assertEquals(List.of(testCity.getId()), result.getCityIds());
+        assertEquals(List.of(testSize.getId()), result.getSizeIds());
+
+        setupSecurityContext(otherUser);
+        assertEquals(List.of(otherPending.getId()), listingService.getPendingListingsForUser(12, 0)
+                .stream().map(ListingDto::getId).toList());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void getPendingListingsShouldReturnNewestFirstAcrossPages() {
+        assertTrue(listingService.getPendingListingsForUser(1, 0).isEmpty());
+        Listing older = createPendingListing("Older pending listing", testUser);
+        Listing newer = createPendingListing("Newer pending listing", testUser);
+
+        assertEquals(List.of(newer.getId()), listingService.getPendingListingsForUser(1, 0)
+                .stream().map(ListingDto::getId).toList());
+        assertEquals(List.of(older.getId()), listingService.getPendingListingsForUser(1, 1)
+                .stream().map(ListingDto::getId).toList());
+        assertTrue(listingService.getPendingListingsForUser(1, 2).isEmpty());
+    }
+
+    private Listing createPendingListing(String title, User owner) {
+        Listing listing = createTestListing(title, owner, testCity, testCategory);
+        listing.setStatus(ListingStatus.PENDING);
+        listing.setSizes(List.of(testSize));
+        return listingRepository.save(listing);
     }
 
     @Test
