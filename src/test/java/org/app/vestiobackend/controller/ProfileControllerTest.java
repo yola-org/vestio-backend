@@ -20,7 +20,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
     public void getOnboardingStatusShouldReturnCorrectStatus() throws Exception {
         testUser.setAge(25);
         userRepository.save(testUser);
-        
+
         userPreferenceRepository.save(UserPreference.builder()
                 .id(UUID.randomUUID())
                 .user(testUser)
@@ -65,7 +65,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk());
-        
+
         mockMvc.perform(get("/api/profile/preferences")
                         .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())

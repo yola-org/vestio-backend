@@ -4,10 +4,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
+import org.app.vestiobackend.entity.Size;
+import org.app.vestiobackend.entity.SizeGroup;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.entity.enums.Condition;
 import org.app.vestiobackend.entity.enums.ContactType;
 import org.app.vestiobackend.entity.enums.ListingStatus;
+import org.app.vestiobackend.repository.CategoryRepository;
+import org.app.vestiobackend.repository.CityRepository;
+import org.app.vestiobackend.repository.ListingRepository;
+import org.app.vestiobackend.repository.SizeGroupRepository;
+import org.app.vestiobackend.repository.SizeRepository;
 import org.app.vestiobackend.repository.UserPreferenceRepository;
 import org.app.vestiobackend.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -18,6 +25,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 
@@ -30,7 +38,7 @@ import static org.mockito.Mockito.when;
 
 @Slf4j
 @SpringBootTest
-@org.springframework.test.context.ActiveProfiles("test")
+@ActiveProfiles("test")
 public abstract class AbstractServiceTest {
 
     @Autowired
@@ -40,19 +48,19 @@ public abstract class AbstractServiceTest {
     protected UserPreferenceRepository userPreferenceRepository;
 
     @Autowired
-    protected org.app.vestiobackend.repository.ListingRepository listingRepository;
+    protected ListingRepository listingRepository;
 
     @Autowired
-    protected org.app.vestiobackend.repository.CityRepository cityRepository;
+    protected CityRepository cityRepository;
 
     @Autowired
-    protected org.app.vestiobackend.repository.CategoryRepository categoryRepository;
+    protected CategoryRepository categoryRepository;
 
     @Autowired
-    protected org.app.vestiobackend.repository.SizeRepository sizeRepository;
+    protected SizeRepository sizeRepository;
 
     @Autowired
-    protected org.app.vestiobackend.repository.SizeGroupRepository sizeGroupRepository;
+    protected SizeGroupRepository sizeGroupRepository;
 
     @MockitoBean
     protected CognitoIdentityProviderClient cognitoClient;
@@ -62,8 +70,8 @@ public abstract class AbstractServiceTest {
     protected User testUser;
     protected City testCity;
     protected Category testCategory;
-    protected org.app.vestiobackend.entity.Size testSize;
-    protected org.app.vestiobackend.entity.SizeGroup testSizeGroup;
+    protected Size testSize;
+    protected SizeGroup testSizeGroup;
 
     @BeforeEach
     public void setup() {
@@ -89,13 +97,13 @@ public abstract class AbstractServiceTest {
                 .build();
         cityRepository.save(testCity);
 
-        testSizeGroup = org.app.vestiobackend.entity.SizeGroup.builder()
+        testSizeGroup = SizeGroup.builder()
                 .id(UUID.randomUUID())
                 .name("Clothing")
                 .build();
         sizeGroupRepository.save(testSizeGroup);
 
-        testSize = org.app.vestiobackend.entity.Size.builder()
+        testSize = Size.builder()
                 .id(UUID.randomUUID())
                 .name("M")
                 .sizeGroup(testSizeGroup)

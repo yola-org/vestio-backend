@@ -351,13 +351,13 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .cityIds(List.of(testCity.getId()))
                 .categoryId(testCategory.getId())
                 .build();
-        
+
         MvcResult result = mockMvc.perform(post("/api/listings")
                         .with(authenticatedUser(testUser))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andReturn();
-        
+
         String response = result.getResponse().getContentAsString();
         UUID id = UUID.fromString(objectMapper.readTree(response).get("id").asText());
 

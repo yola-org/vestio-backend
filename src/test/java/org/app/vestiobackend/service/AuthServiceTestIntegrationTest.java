@@ -4,9 +4,12 @@ import org.app.vestiobackend.dto.JwtResponseDto;
 import org.app.vestiobackend.dto.LoginRequestDto;
 import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.entity.User;
+import org.app.vestiobackend.http.errors.exception.InternalException;
 import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
@@ -17,6 +20,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @Transactional
@@ -139,5 +143,41 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         request.setPassword("Password123!");
 
         assertThrows(UnAuthorizedException.class, () -> authService.login(request));
+    }
+
+    @Test
+    void rejectsInvalidCredentialsForAnExistingUser() {
+        when(cognitoClient.adminInitiateAuth(any(AdminInitiateAuthRequest.class)))
+                .thenThrow(NotAuthorizedException.builder().build());
+        LoginRequestDto request = new LoginRequestDto();
+        request.setEmail(TEST_EMAIL);
+        request.setPassword("invalid-password");
+
+        assertThrows(UnAuthorizedException.class, () -> authService.login(request));
+
+        verify(cognitoClient).adminInitiateAuth(any(AdminInitiateAuthRequest.class));
+        verifyNoMoreInteractions(cognitoClient);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"email", "sub"})
+    void rejectsLinkingExistingUserWhenCognitoSubjectIsMissingOrBlank(String attributeName) {
+        testUser.setCognitoSub(null);
+        userRepository.saveAndFlush(testUser);
+        LoginRequestDto request = new LoginRequestDto();
+        request.setEmail(TEST_EMAIL);
+        request.setPassword("Password123!");
+        when(cognitoClient.adminInitiateAuth(any(AdminInitiateAuthRequest.class))).thenReturn(
+                AdminInitiateAuthResponse.builder().authenticationResult(
+                        AuthenticationResultType.builder().accessToken("test-access-token").build()).build());
+        when(cognitoClient.getUser(GetUserRequest.builder().accessToken("test-access-token").build()))
+                .thenReturn(GetUserResponse.builder().userAttributes(
+                        AttributeType.builder().name(attributeName).value(" ").build()).build());
+
+        InternalException error = assertThrows(InternalException.class, () -> authService.login(request));
+
+        assertEquals("Cognito user is missing its subject.", error.getMessage());
+        entityManager.clear();
+        assertNull(userRepository.findByEmail(TEST_EMAIL).orElseThrow().getCognitoSub());
     }
 }

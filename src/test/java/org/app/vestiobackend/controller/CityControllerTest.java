@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.interceptor.SimpleKey;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,10 +22,10 @@ public class CityControllerTest extends AbstractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[?(@.name == 'Casablanca')]").exists());
-        
+
         // Verify cache
         Cache citiesCache = cacheManager.getCache("cities");
         assertNotNull(citiesCache);
-        assertNotNull(citiesCache.get(org.springframework.cache.interceptor.SimpleKey.EMPTY));
+        assertNotNull(citiesCache.get(SimpleKey.EMPTY));
     }
 }

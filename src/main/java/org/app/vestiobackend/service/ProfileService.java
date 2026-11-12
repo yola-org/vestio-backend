@@ -78,7 +78,7 @@ public class ProfileService {
     @Transactional
     public void updatePreferences(UserPreferencesDto dto) {
         User user = userContext.getCurrentUser();
-        
+
         // Simple strategy: delete existing and add new
         userPreferenceRepository.deleteByUser(user);
 
@@ -113,17 +113,17 @@ public class ProfileService {
     public UserPreferencesDto getUserPreferences() {
         User user = userContext.getCurrentUser();
         List<UserPreference> prefs = userPreferenceRepository.findByUser(user);
-        
+
         UserPreferencesDto dto = new UserPreferencesDto();
         if (!prefs.isEmpty()) {
             UserPreference first = prefs.get(0);
             dto.setGender(first.getGender());
-            
+
             List<Category> categories = prefs.stream()
                     .map(UserPreference::getCategory)
                     .filter(Objects::nonNull)
                     .toList();
-            
+
             dto.setCategoryIds(categories.stream().map(Category::getId).toList());
             dto.setCategories(categories.stream().map(categoryMapper::toDto).toList());
         }

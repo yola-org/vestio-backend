@@ -2,7 +2,12 @@ package org.app.vestiobackend.service;
 
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
-import org.app.vestiobackend.entity.*;
+import org.app.vestiobackend.entity.Category;
+import org.app.vestiobackend.entity.City;
+import org.app.vestiobackend.entity.Favorite;
+import org.app.vestiobackend.entity.Listing;
+import org.app.vestiobackend.entity.Size;
+import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.entity.enums.ListingStatus;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
@@ -12,6 +17,8 @@ import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.repository.ListingRepository;
+import org.app.vestiobackend.repository.SizeRepository;
+import org.app.vestiobackend.service.AssetService.UploadedAsset;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
 import org.springframework.data.domain.PageRequest;
@@ -37,7 +44,7 @@ public class ListingService {
     private final ListingRepository listingRepository;
     private final CityRepository cityRepository;
     private final CategoryRepository categoryRepository;
-    private final org.app.vestiobackend.repository.SizeRepository sizeRepository;
+    private final SizeRepository sizeRepository;
     private final ListingMapper listingMapper;
     private final UserContext userContext;
     private final AssetService assetService;
@@ -66,7 +73,7 @@ public class ListingService {
             if (cities.size() != dto.getCityIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more cities not found");
             }
-            listing.setCities(new java.util.ArrayList<>(cities));
+            listing.setCities(new ArrayList<>(cities));
         }
 
         if (dto.getSizeIds() != null && !dto.getSizeIds().isEmpty()) {
@@ -74,7 +81,7 @@ public class ListingService {
             if (sizes.size() != dto.getSizeIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more sizes not found");
             }
-            listing.setSizes(new java.util.ArrayList<>(sizes));
+            listing.setSizes(new ArrayList<>(sizes));
         }
 
         // Listing status is controlled by the asset workflow, never by the request body.
@@ -137,7 +144,7 @@ public class ListingService {
             if (cities.size() != dto.getCityIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more cities not found");
             }
-            listing.setCities(new java.util.ArrayList<>(cities));
+            listing.setCities(new ArrayList<>(cities));
         }
 
         if (dto.getCategoryId() != null && !dto.getCategoryId().equals(listing.getCategory().getId())) {
@@ -151,7 +158,7 @@ public class ListingService {
             if (sizes.size() != dto.getSizeIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more sizes not found");
             }
-            listing.setSizes(new java.util.ArrayList<>(sizes));
+            listing.setSizes(new ArrayList<>(sizes));
         }
 
         return listingMapper.toDto(listingRepository.save(listing));
@@ -176,8 +183,8 @@ public class ListingService {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to upload listing assets");
         }
 
-        List<AssetService.UploadedAsset> assets = assetService.uploadListingImages(listing.getId(), images);
-        List<UUID> assetIds = assets.stream().map(AssetService.UploadedAsset::id).toList();
+        List<UploadedAsset> assets = assetService.uploadListingImages(listing.getId(), images);
+        List<UUID> assetIds = assets.stream().map(UploadedAsset::id).toList();
         if (listing.getAssetKeys() == null) {
             listing.setAssetKeys(new ArrayList<>());
         }

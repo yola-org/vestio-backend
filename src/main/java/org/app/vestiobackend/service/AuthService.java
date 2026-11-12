@@ -20,7 +20,9 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -54,7 +56,7 @@ public class AuthService {
      */
     private boolean isLocalProfileActive() {
         if (activeProfiles == null) return false;
-        return java.util.Arrays.asList(activeProfiles.split(",")).contains("local");
+        return Arrays.asList(activeProfiles.split(",")).contains("local");
     }
 
     /**
@@ -72,7 +74,7 @@ public class AuthService {
 
         // 1. Create user in Cognito
         AttributeType emailAttr = AttributeType.builder().name("email").value(request.getEmail()).build();
-        
+
         String secretHash = calculateSecretHash(clientId, clientSecret, request.getEmail());
 
         SignUpRequest signUpRequest = SignUpRequest.builder()
@@ -111,7 +113,7 @@ public class AuthService {
                 .authFlow(AuthFlowType.ADMIN_NO_SRP_AUTH)
                 .clientId(clientId)
                 .userPoolId(getUserPoolIdFromConfig())
-                .authParameters(java.util.Map.of(
+                .authParameters(Map.of(
                         "USERNAME", request.getEmail(),
                         "PASSWORD", request.getPassword(),
                         "SECRET_HASH", secretHash
@@ -124,7 +126,7 @@ public class AuthService {
             if (user.getCognitoSub() == null) {
                 linkExistingUser(user, result.accessToken());
             }
-            
+
             return toJwtResponse(result);
         } catch (UserNotFoundException | NotAuthorizedException e) {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "User not found or invalid credentials.");

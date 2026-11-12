@@ -1,6 +1,7 @@
 package org.app.vestiobackend.service;
 
 import org.app.vestiobackend.config.properties.ImageUploadProperties;
+import org.app.vestiobackend.service.AssetService.UploadedAsset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,10 +58,10 @@ class AssetServiceTest {
         when(storage.putListingAsset(eq(listingId), any(UUID.class), eq("photo.PNG"), eq(content), eq("image/png")))
                 .thenReturn(objectKey);
 
-        List<AssetService.UploadedAsset> assets = assetService.uploadListingImages(listingId, List.of(empty, image));
+        List<UploadedAsset> assets = assetService.uploadListingImages(listingId, List.of(empty, image));
 
         assertThat(assets).hasSize(1);
-        AssetService.UploadedAsset asset = assets.getFirst();
+        UploadedAsset asset = assets.getFirst();
         assertThat(asset.id()).isNotNull();
         assertThat(asset.objectKey()).isEqualTo(objectKey);
         verify(storage).putListingAsset(listingId, asset.id(), "photo.PNG", content, "image/png");
@@ -110,9 +111,9 @@ class AssetServiceTest {
         UUID userId = UUID.randomUUID();
         String firstKey = "listings/test/first/original.png";
         String secondKey = "listings/test/second/original.png";
-        List<AssetService.UploadedAsset> assets = List.of(
-                new AssetService.UploadedAsset(UUID.randomUUID(), firstKey),
-                new AssetService.UploadedAsset(UUID.randomUUID(), secondKey));
+        List<UploadedAsset> assets = List.of(
+                new UploadedAsset(UUID.randomUUID(), firstKey),
+                new UploadedAsset(UUID.randomUUID(), secondKey));
 
         assetService.queueListingImageOptimization(userId, listingId, assets);
 

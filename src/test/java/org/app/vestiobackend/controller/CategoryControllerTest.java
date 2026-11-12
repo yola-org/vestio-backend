@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.interceptor.SimpleKey;
 
 import java.util.UUID;
 
@@ -46,6 +47,6 @@ public class CategoryControllerTest extends AbstractControllerTest {
         // Verify cache
         Cache categoriesCache = cacheManager.getCache("categories");
         assertNotNull(categoriesCache);
-        assertNotNull(categoriesCache.get(org.springframework.cache.interceptor.SimpleKey.EMPTY));
+        assertNotNull(categoriesCache.get(SimpleKey.EMPTY));
     }
 }

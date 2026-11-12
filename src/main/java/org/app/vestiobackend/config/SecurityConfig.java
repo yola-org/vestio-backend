@@ -2,6 +2,7 @@ package org.app.vestiobackend.config;
 
 import org.app.vestiobackend.config.filters.LocalMockAuthFilter;
 import org.app.vestiobackend.security.ApiAuthenticationInterceptor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -26,7 +27,7 @@ public class SecurityConfig {
 
     private final LocalMockAuthFilter localMockAuthFilter;
 
-    public SecurityConfig(org.springframework.beans.factory.ObjectProvider<LocalMockAuthFilter> localMockAuthFilterProvider) {
+    public SecurityConfig(ObjectProvider<LocalMockAuthFilter> localMockAuthFilterProvider) {
         this.localMockAuthFilter = localMockAuthFilterProvider.getIfAvailable();
     }
 
@@ -58,7 +59,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
-        
+
         if (localMockAuthFilter != null) {
             http.addFilterBefore(localMockAuthFilter, BearerTokenAuthenticationFilter.class);
         }

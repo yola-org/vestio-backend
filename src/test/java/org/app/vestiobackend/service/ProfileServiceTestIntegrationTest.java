@@ -132,6 +132,37 @@ public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
     }
 
     @Test
+    void savesGenderWithoutCategoriesAndCanClearIt() {
+        UserPreferencesDto genderOnly = new UserPreferencesDto();
+        genderOnly.setCategoryIds(List.of());
+        genderOnly.setGender("FEMALE");
+
+        profileService.updatePreferences(genderOnly);
+
+        UserPreferencesDto saved = profileService.getUserPreferences();
+        assertEquals("FEMALE", saved.getGender());
+        assertTrue(saved.getCategoryIds().isEmpty());
+        assertTrue(saved.getCategories().isEmpty());
+
+        profileService.updatePreferences(new UserPreferencesDto());
+
+        assertNull(profileService.getUserPreferences().getGender());
+        assertTrue(userPreferenceRepository.findByUser(testUser).isEmpty());
+    }
+
+    @Test
+    void rejectsPreferencesForAnUnknownCategory() {
+        UUID unknownCategory = UUID.randomUUID();
+        UserPreferencesDto preferences = new UserPreferencesDto();
+        preferences.setCategoryIds(List.of(unknownCategory));
+
+        ResourceNotFoundException error = assertThrows(ResourceNotFoundException.class,
+                () -> profileService.updatePreferences(preferences));
+
+        assertEquals("Category not found: " + unknownCategory, error.getMessage());
+    }
+
+    @Test
     public void sequentialUpdatesShouldWorkCorrectly() {
         // 1. Update Profile City
         UserProfileDto profileDto = UserProfileDto.builder()

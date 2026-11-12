@@ -21,7 +21,7 @@ public class CategoryController {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
-    
+
     @GetMapping
     @Cacheable("categories")
     public ResponseEntity<List<CategoryDto>> getAllCategories() {
