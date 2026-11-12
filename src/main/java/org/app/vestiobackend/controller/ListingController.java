@@ -96,4 +96,41 @@ public class ListingController {
         listingService.deleteListing(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Saves a listing to the authenticated user's favorites.
+     *
+     * @param id The UUID of the listing.
+     * @return A 200 OK response, including when the listing is already saved.
+     */
+    @AuthRequired
+    @PostMapping("/{id}/favorite")
+    public ResponseEntity<Void> addFavorite(@PathVariable UUID id) {
+        listingService.addFavorite(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Removes a listing from the authenticated user's favorites.
+     *
+     * @param id The UUID of the listing.
+     * @return A 200 OK response, including when an existing listing was never saved.
+     */
+    @AuthRequired
+    @DeleteMapping("/{id}/favorite")
+    public ResponseEntity<Void> removeFavorite(@PathVariable UUID id) {
+        listingService.removeFavorite(id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Retrieves the authenticated user's favorited listings, newest favorite first.
+     *
+     * @return A response containing the saved listings.
+     */
+    @AuthRequired
+    @GetMapping("/favorites")
+    public ResponseEntity<List<ListingDto>> getFavorites() {
+        return ResponseEntity.ok(listingService.getFavorites());
+    }
 }
