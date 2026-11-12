@@ -196,13 +196,7 @@ public class ListingControllerTest extends AbstractControllerTest {
 
     @Test
     void favoritesShouldBeScopedToTheCurrentUserAndSupportRetries() throws Exception {
-        User seller = userRepository.save(User.builder()
-                .id(UUID.randomUUID())
-                .cognitoSub(UUID.randomUUID().toString())
-                .email("seller@example.com")
-                .firstName("Test")
-                .lastName("Seller")
-                .build());
+        User seller = createSeller();
         Listing listing = createTestListing("Favorite listing", seller, testCity, testCategory);
         createTestListing("Other listing", seller, testCity, testCategory);
         UUID id = listing.getId();
@@ -215,8 +209,12 @@ public class ListingControllerTest extends AbstractControllerTest {
         mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(seller)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(seller)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_CANNOT_FAVORITE_OWN_LISTING"));
         mockMvc.perform(delete("/api/listings/{id}/favorite", id).with(authenticatedUser(seller)))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_CANNOT_FAVORITE_OWN_LISTING"));
 
         mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
@@ -238,7 +236,8 @@ public class ListingControllerTest extends AbstractControllerTest {
 
     @Test
     void concurrentFavoriteRequestsShouldSaveTheListingOnce() throws Exception {
-        Listing listing = createTestListing("Favorite listing", testUser, testCity, testCategory);
+        User seller = createSeller();
+        Listing listing = createTestListing("Favorite listing", seller, testCity, testCategory);
         CyclicBarrier startRequests = new CyclicBarrier(2);
         Callable<Void> favoriteRequest = () -> {
             startRequests.await(5, TimeUnit.SECONDS);
@@ -263,16 +262,27 @@ public class ListingControllerTest extends AbstractControllerTest {
 
     @Test
     void deletingAListingShouldRemoveItsFavorites() throws Exception {
-        Listing listing = createTestListing("Favorite listing", testUser, testCity, testCategory);
+        User seller = createSeller();
+        Listing listing = createTestListing("Favorite listing", seller, testCity, testCategory);
         UUID id = listing.getId();
 
         mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
                 .andExpect(status().isOk());
-        mockMvc.perform(delete("/api/listings/{id}", id).with(authenticatedUser(testUser)))
+        mockMvc.perform(delete("/api/listings/{id}", id).with(authenticatedUser(seller)))
                 .andExpect(status().isNoContent());
         mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private User createSeller() {
+        return userRepository.save(User.builder()
+                .id(UUID.randomUUID())
+                .cognitoSub(UUID.randomUUID().toString())
+                .email("seller@example.com")
+                .firstName("Test")
+                .lastName("Seller")
+                .build());
     }
 
     @Test
