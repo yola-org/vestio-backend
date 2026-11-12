@@ -2,6 +2,7 @@ package org.app.vestiobackend.controller;
 
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.Listing;
+import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.entity.enums.Condition;
 import org.app.vestiobackend.entity.enums.ContactType;
 import org.app.vestiobackend.service.S3AssetsService;
@@ -17,6 +18,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
@@ -165,6 +170,119 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .andExpect(status().isUnauthorized());
 
         verifyNoInteractions(assetsService, eventPublisher);
+    }
+
+    @Test
+    void favoritesShouldRequireAuthentication() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/listings/favorites"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/listings/{id}/favorite", id))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/listings/{id}/favorite", id))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void favoriteMutationsShouldReturnNotFoundForMissingListings() throws Exception {
+        UUID id = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void favoritesShouldBeScopedToTheCurrentUserAndSupportRetries() throws Exception {
+        User seller = createSeller();
+        Listing listing = createTestListing("Favorite listing", seller, testCity, testCategory);
+        createTestListing("Other listing", seller, testCity, testCategory);
+        UUID id = listing.getId();
+
+        mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(seller)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(seller)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_CANNOT_FAVORITE_OWN_LISTING"));
+        mockMvc.perform(delete("/api/listings/{id}/favorite", id).with(authenticatedUser(seller)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_CANNOT_FAVORITE_OWN_LISTING"));
+
+        mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(id.toString()))
+                .andExpect(jsonPath("$[0].title").value(listing.getTitle()))
+                .andExpect(jsonPath("$[0].cityIds[0]").value(testCity.getId().toString()));
+
+        mockMvc.perform(delete("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get("/api/listings/{id}", id))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void concurrentFavoriteRequestsShouldSaveTheListingOnce() throws Exception {
+        User seller = createSeller();
+        Listing listing = createTestListing("Favorite listing", seller, testCity, testCategory);
+        CyclicBarrier startRequests = new CyclicBarrier(2);
+        Callable<Void> favoriteRequest = () -> {
+            startRequests.await(5, TimeUnit.SECONDS);
+            mockMvc.perform(post("/api/listings/{id}/favorite", listing.getId())
+                            .with(authenticatedUser(testUser)))
+                    .andExpect(status().isOk());
+            return null;
+        };
+
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var firstRequest = executor.submit(favoriteRequest);
+            var secondRequest = executor.submit(favoriteRequest);
+            firstRequest.get(10, TimeUnit.SECONDS);
+            secondRequest.get(10, TimeUnit.SECONDS);
+        }
+
+        mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(listing.getId().toString()));
+    }
+
+    @Test
+    void deletingAListingShouldRemoveItsFavorites() throws Exception {
+        User seller = createSeller();
+        Listing listing = createTestListing("Favorite listing", seller, testCity, testCategory);
+        UUID id = listing.getId();
+
+        mockMvc.perform(post("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+        mockMvc.perform(delete("/api/listings/{id}", id).with(authenticatedUser(seller)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    private User createSeller() {
+        return userRepository.save(User.builder()
+                .id(UUID.randomUUID())
+                .cognitoSub(UUID.randomUUID().toString())
+                .email("seller@example.com")
+                .firstName("Test")
+                .lastName("Seller")
+                .build());
     }
 
     @Test
