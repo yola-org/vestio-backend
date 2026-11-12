@@ -36,6 +36,7 @@ jobs:
     with:
       artifact-name: backend-jar
       artifact-path: build/libs/
+      test-command: ./gradlew check
       build-command: ./gradlew bootJar
 
   release-gate:

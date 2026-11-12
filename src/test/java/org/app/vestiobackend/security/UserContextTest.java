@@ -63,6 +63,41 @@ public class UserContextTest extends AbstractServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> userContext.getCurrentUser());
     }
 
+    @Test
+    void resolvesStringPrincipalByNormalizedEmailWithoutJwtClaims() {
+        setupSecurityContextWithString("TEST@EXAMPLE.COM");
+
+        assertThat(userContext.getCurrentUser().getId()).isEqualTo(testUser.getId());
+        assertThat(userContext.getCurrentUserId()).isNull();
+        assertThat(userContext.getClaim("username")).isNull();
+    }
+
+    @Test
+    void fallsBackToAuthenticationNameForAnUnrecognizedPrincipal() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getPrincipal()).thenReturn(new Object());
+        when(authentication.getName()).thenReturn("TEST@EXAMPLE.COM");
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        assertThat(userContext.getCurrentUserEmail()).isEqualTo(TEST_EMAIL);
+    }
+
+    @Test
+    void cannotResolveEmailWithoutAuthentication() {
+        SecurityContextHolder.clearContext();
+
+        assertThat(userContext.getCurrentUserId()).isNull();
+        assertThat(assertThrows(RuntimeException.class, userContext::getCurrentUserEmail))
+                .hasMessage("Unknown principal type: null");
+    }
+
+    @Test
+    void rejectsJwtWithBlankSubject() {
+        setupSecurityContext(" ");
+
+        assertThrows(ResourceNotFoundException.class, userContext::getCurrentUser);
+    }
+
     private void setupSecurityContextWithString(String email) {
         Authentication authentication = mock(Authentication.class);
         when(authentication.getPrincipal()).thenReturn(email);

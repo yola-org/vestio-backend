@@ -81,6 +81,19 @@ Run the test suite using Gradle:
 
 Tests use an in-memory H2 database and a dedicated `test` profile.
 
+Run `./gradlew check` to run the tests, SpotBugs analysis, and Spotless Java
+formatting checks. Use `./gradlew spotlessApply` to trim trailing whitespace
+and add a final newline to Java files. SpotBugs reports findings without failing
+the build. JaCoCo runs with the test suite and has no minimum coverage threshold.
+
+- JaCoCo [HTML](build/reports/jacoco/test/html/index.html) and
+  [XML](build/reports/jacoco/test/jacocoTestReport.xml) reports
+- SpotBugs [application](build/reports/spotbugs/main.html) and
+  [test](build/reports/spotbugs/test.html) reports
+
+GitHub Actions and GitLab CI both run `check`. GitLab CI uploads the reports
+with the test job.
+
 ## GitHub Actions
 
 `.github/workflows/ci.yml` follows the image optimizer pipeline and calls

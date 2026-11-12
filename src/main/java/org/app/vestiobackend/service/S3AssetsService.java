@@ -10,6 +10,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -90,6 +91,6 @@ public class S3AssetsService {
         if (dotIndex <= 0 || dotIndex == fileName.length() - 1) {
             return "";
         }
-        return fileName.substring(dotIndex).toLowerCase(java.util.Locale.ROOT);
+        return fileName.substring(dotIndex).toLowerCase(Locale.ROOT);
     }
 }

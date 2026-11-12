@@ -14,6 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.List;
 
 /**
@@ -27,7 +28,7 @@ public class LocalMockAuthFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        
+
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer mock-local-jwt-token-for-")) {
             String email = header.replace("Bearer mock-local-jwt-token-for-", "").trim().toLowerCase();
@@ -35,7 +36,7 @@ public class LocalMockAuthFilter extends OncePerRequestFilter {
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         email, null, Collections.emptyList());
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                
+
                 // Wrap request to hide Authorization header from downstream JWT filters
                 HttpServletRequest wrappedRequest = new HttpServletRequestWrapper(request) {
                     @Override
@@ -47,7 +48,7 @@ public class LocalMockAuthFilter extends OncePerRequestFilter {
                     }
 
                     @Override
-                    public java.util.Enumeration<String> getHeaders(String name) {
+                    public Enumeration<String> getHeaders(String name) {
                         if ("Authorization".equalsIgnoreCase(name)) {
                             return Collections.emptyEnumeration();
                         }
@@ -55,7 +56,7 @@ public class LocalMockAuthFilter extends OncePerRequestFilter {
                     }
 
                     @Override
-                    public java.util.Enumeration<String> getHeaderNames() {
+                    public Enumeration<String> getHeaderNames() {
                         List<String> names = Collections.list(super.getHeaderNames());
                         names.removeIf(n -> n.equalsIgnoreCase("Authorization"));
                         return Collections.enumeration(names);

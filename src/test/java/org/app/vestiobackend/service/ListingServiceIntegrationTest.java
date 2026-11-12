@@ -12,6 +12,8 @@ import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -105,6 +107,53 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
     }
 
     @Test
+    void updatesListingCategoryAndReplacesAssociatedSizes() {
+        Listing listing = createTestListing("Original", testUser, testCity, testCategory);
+        Category replacement = categoryRepository.save(Category.builder().id(UUID.randomUUID())
+                .name("Replacement").sizeGroup(testSizeGroup).build());
+        ListingDto changes = ListingDto.builder()
+                .title("Updated")
+                .price(new BigDecimal("12.00"))
+                .quantity(1)
+                .condition(Condition.GOOD)
+                .contactTypes(List.of(ContactType.MEETUP))
+                .cityIds(List.of())
+                .categoryId(replacement.getId())
+                .sizeIds(List.of(testSize.getId()))
+                .build();
+
+        ListingDto updated = listingService.updateListing(listing.getId(), changes);
+
+        assertEquals(replacement.getId(), updated.getCategoryId());
+        assertEquals("Replacement", updated.getCategoryName());
+        assertEquals(List.of(testSize.getId()), updated.getSizeIds());
+        assertTrue(updated.getCityIds().isEmpty());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"city, One or more cities not found", "size, One or more sizes not found",
+            "category, Category not found"})
+    void rejectsUnknownCatalogReferencesOnCreateAndUpdate(String reference, String expectedMessage) {
+        Listing listing = createTestListing("Original", testUser, testCity, testCategory);
+        UUID unknown = UUID.randomUUID();
+        ListingDto dto = ListingDto.builder()
+                .title(listing.getTitle())
+                .price(listing.getPrice())
+                .quantity(listing.getQuantity())
+                .condition(listing.getCondition())
+                .contactTypes(listing.getContactTypes())
+                .categoryId("category".equals(reference) ? unknown : testCategory.getId())
+                .cityIds("city".equals(reference) ? List.of(unknown) : List.of(testCity.getId()))
+                .sizeIds("size".equals(reference) ? List.of(unknown) : List.of(testSize.getId()))
+                .build();
+
+        assertEquals(expectedMessage, assertThrows(ResourceNotFoundException.class,
+                () -> listingService.createListing(dto)).getMessage());
+        assertEquals(expectedMessage, assertThrows(ResourceNotFoundException.class,
+                () -> listingService.updateListing(listing.getId(), dto)).getMessage());
+    }
+
+    @Test
     public void deleteListingShouldRemoveFromDb() {
         ListingDto dto = ListingDto.builder()
                 .title("To be deleted")
@@ -176,7 +225,7 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
     public void updateListingByNonOwnerShouldThrowException() {
         // Given
         Listing listing = createTestListing("Other's Listing", testUser, testCity, testCategory);
-        
+
         // Switch user
         setupSecurityContext(createTestUser("other@example.com"));
 
@@ -192,7 +241,7 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
     public void deleteListingByNonOwnerShouldThrowException() {
         // Given
         Listing listing = createTestListing("Other's Listing", testUser, testCity, testCategory);
-        
+
         // Switch user
         setupSecurityContext(createTestUser("other@example.com"));
 
