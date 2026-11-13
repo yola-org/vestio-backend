@@ -2,39 +2,16 @@ package org.app.vestiobackend.controller;
 
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
-import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.UserPreference;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 import java.util.List;
-import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 public class ProfileControllerTest extends AbstractControllerTest {
-
-    @Test
-    public void getOnboardingStatusShouldReturnCorrectStatus() throws Exception {
-        testUser.setAge(25);
-        userRepository.save(testUser);
-
-        userPreferenceRepository.save(UserPreference.builder()
-                .id(UUID.randomUUID())
-                .user(testUser)
-                .category(testCategory)
-                .build());
-
-        mockMvc.perform(get("/api/profile/onboarding-status")
-                        .with(authenticatedUser(testUser)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountCreated").value(true))
-                .andExpect(jsonPath("$.additionalDataAdded").value(true))
-                .andExpect(jsonPath("$.preferencesAdded").value(true))
-                .andExpect(jsonPath("$.publishedSomething").value(false));
-    }
 
     @Test
     public void getProfileShouldReturnUserProfile() throws Exception {
@@ -96,8 +73,8 @@ public class ProfileControllerTest extends AbstractControllerTest {
     }
 
     @Test
-    public void getOnboardingStatusUnauthenticatedShouldReturn401() throws Exception {
-        mockMvc.perform(get("/api/profile/onboarding-status"))
+    public void getProfileUnauthenticatedShouldReturn401() throws Exception {
+        mockMvc.perform(get("/api/profile"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -145,13 +122,5 @@ public class ProfileControllerTest extends AbstractControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gender").value("FEMALE"))
                 .andExpect(jsonPath("$.categoryIds[0]").value(testCategory.getId().toString()));
-
-        // 5. Verify Onboarding Status
-        mockMvc.perform(get("/api/profile/onboarding-status")
-                        .with(authenticatedUser(testUser)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountCreated").value(true))
-                .andExpect(jsonPath("$.additionalDataAdded").value(true))
-                .andExpect(jsonPath("$.preferencesAdded").value(true));
     }
 }

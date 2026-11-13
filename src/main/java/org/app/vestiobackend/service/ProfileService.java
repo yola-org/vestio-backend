@@ -1,7 +1,6 @@
 package org.app.vestiobackend.service;
 
 import lombok.RequiredArgsConstructor;
-import org.app.vestiobackend.dto.OnboardingStatusDto;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.app.vestiobackend.entity.Category;
@@ -24,7 +23,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service for managing user profiles and preferences.
- * Handles onboarding status, retrieval of user profile data, and updating user preferences.
+ * Handles retrieval and updates of user profiles and preferences.
  */
 @Service
 @RequiredArgsConstructor
@@ -35,28 +34,6 @@ public class ProfileService {
     private final UserContext userContext;
     private final UserMapper userMapper;
     private final CategoryMapper categoryMapper;
-
-    /**
-     * Retrieves the onboarding status of the currently authenticated user.
-     * The status includes whether the account is created, additional data (age, gender, city) is added,
-     * preferences are selected, and if the user has published anything.
-     *
-     * @return An {@link OnboardingStatusDto} containing the completion status of various onboarding steps.
-     * @throws ResourceNotFoundException if the user is not found in the local database.
-     */
-    public OnboardingStatusDto getOnboardingStatus() {
-        User user = userContext.getCurrentUser();
-
-        boolean additionalDataAdded = user.getAge() != null || user.getGender() != null || user.getCity() != null;
-        boolean preferencesAdded = !userPreferenceRepository.findByUser(user).isEmpty();
-
-        return OnboardingStatusDto.builder()
-                .accountCreated(true)
-                .additionalDataAdded(additionalDataAdded)
-                .preferencesAdded(preferencesAdded)
-                .publishedSomething(false) // Placeholder
-                .build();
-    }
 
     /**
      * Retrieves the profile data of the currently authenticated user.
