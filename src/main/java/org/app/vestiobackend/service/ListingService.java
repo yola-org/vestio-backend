@@ -1,7 +1,9 @@
 package org.app.vestiobackend.service;
 
+import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
+import org.app.vestiobackend.dto.ListingSearchFilters;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Favorite;
@@ -17,10 +19,13 @@ import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.repository.ListingRepository;
+import org.app.vestiobackend.repository.ListingSearchSpecification;
 import org.app.vestiobackend.repository.SizeRepository;
 import org.app.vestiobackend.service.AssetService.UploadedAsset;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
+import org.hibernate.dialect.PostgreSQLDialect;
+import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -49,6 +54,7 @@ public class ListingService {
     private final UserContext userContext;
     private final AssetService assetService;
     private final FavoriteRepository favoriteRepository;
+    private final EntityManagerFactory entityManagerFactory;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -115,6 +121,17 @@ public class ListingService {
         return listingRepository.findAll().stream()
                 .map(listingMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ListingDto> searchListings(ListingSearchFilters filters, int size, int page) {
+        Pageable pageable = PageRequest.of(page, size);
+        boolean postgres = entityManagerFactory.unwrap(SessionFactoryImplementor.class)
+                .getJdbcServices().getDialect() instanceof PostgreSQLDialect;
+        return listingRepository.findBy(ListingSearchSpecification.matching(filters, postgres),
+                        search -> search.slice(pageable)).stream()
+                .map(listingMapper::toDto)
+                .toList();
     }
 
     /**

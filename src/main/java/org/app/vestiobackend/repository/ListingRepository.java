@@ -7,6 +7,7 @@ import org.app.vestiobackend.entity.enums.ListingStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
 
@@ -15,7 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface ListingRepository extends JpaRepository<Listing, UUID> {
+public interface ListingRepository extends JpaRepository<Listing, UUID>, JpaSpecificationExecutor<Listing> {
     List<Listing> findByUser(User user);
 
     @Lock(LockModeType.PESSIMISTIC_READ)
