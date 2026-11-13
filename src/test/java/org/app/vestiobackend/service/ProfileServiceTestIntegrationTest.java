@@ -1,6 +1,5 @@
 package org.app.vestiobackend.service;
 
-import org.app.vestiobackend.dto.OnboardingStatusDto;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.app.vestiobackend.entity.User;
@@ -27,39 +26,6 @@ public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
 
     @Autowired
     private ProfileService profileService;
-
-    @Test
-    public void getOnboardingStatusShouldReturnCorrectStatus() {
-        // Given
-        testUser.setAge(25);
-        userRepository.save(testUser);
-
-        userPreferenceRepository.save(UserPreference.builder()
-                .id(UUID.randomUUID())
-                .user(testUser)
-                .category(testCategory)
-                .build());
-
-        // When
-        OnboardingStatusDto status = profileService.getOnboardingStatus();
-
-        // Then
-        assertTrue(status.isAccountCreated());
-        assertTrue(status.isAdditionalDataAdded());
-        assertTrue(status.isPreferencesAdded());
-        assertFalse(status.isPublishedSomething());
-    }
-
-    @Test
-    public void getOnboardingStatusWithNoAdditionalDataShouldReturnFalse() {
-        // When
-        OnboardingStatusDto status = profileService.getOnboardingStatus();
-
-        // Then
-        assertTrue(status.isAccountCreated());
-        assertFalse(status.isAdditionalDataAdded());
-        assertFalse(status.isPreferencesAdded());
-    }
 
     @Test
     public void updatePreferencesShouldSaveNewPreferences() {
@@ -121,14 +87,14 @@ public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
     }
 
     @Test
-    public void getOnboardingStatusWhenUserNotFoundShouldThrowException() {
+    public void getCurrentUserProfileWhenUserNotFoundShouldThrowException() {
         // Given
         userRepository.deleteAll(); // Remove the default testUser
         SecurityContextHolder.clearContext();
         setupSecurityContext(testUser);
 
         // When & Then
-        assertThrows(ResourceNotFoundException.class, () -> profileService.getOnboardingStatus());
+        assertThrows(ResourceNotFoundException.class, () -> profileService.getCurrentUserProfile());
     }
 
     @Test
@@ -193,13 +159,7 @@ public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
         assertEquals("FEMALE", resultPrefs.getGender());
         assertEquals(1, resultPrefs.getCategoryIds().size());
 
-        // 4. Verify Onboarding Status
-        OnboardingStatusDto status = profileService.getOnboardingStatus();
-        assertTrue(status.isAccountCreated());
-        assertTrue(status.isAdditionalDataAdded());
-        assertTrue(status.isPreferencesAdded());
-
-        // 5. Update Profile Age
+        // 4. Update Profile Age
         profileDto = UserProfileDto.builder()
                 .age(30)
                 .build();

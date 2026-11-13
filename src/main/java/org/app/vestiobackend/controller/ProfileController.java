@@ -1,7 +1,6 @@
 package org.app.vestiobackend.controller;
 
 import lombok.RequiredArgsConstructor;
-import org.app.vestiobackend.dto.OnboardingStatusDto;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.app.vestiobackend.security.AuthRequired;
@@ -11,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * REST controller for managing user profiles.
- * Provides endpoints for onboarding status, retrieving current user profile, and updating preferences.
+ * Provides endpoints for retrieving the current user profile and managing preferences.
  */
 @AuthRequired
 @RestController
@@ -20,16 +19,6 @@ import org.springframework.web.bind.annotation.*;
 public class ProfileController {
 
     private final ProfileService profileService;
-
-    /**
-     * Endpoint to retrieve the onboarding status of the current user.
-     *
-     * @return A response entity containing the onboarding status DTO.
-     */
-    @GetMapping("/onboarding-status")
-    public ResponseEntity<OnboardingStatusDto> getOnboardingStatus() {
-        return ResponseEntity.ok(profileService.getOnboardingStatus());
-    }
 
     /**
      * Endpoint to retrieve the profile of the currently authenticated user.
