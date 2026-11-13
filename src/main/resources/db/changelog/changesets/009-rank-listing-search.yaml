@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-rank-listing-search
+      author: youssef
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: >-
+              CREATE FUNCTION normalize_listing_search_text(text) RETURNS text
+              LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+              AS 'SELECT regexp_replace(lower($1), ''\m(t[- ]?shirts?|tees?)\M'', ''tshirt'', ''g'')';
+        - sql:
+            sql: ALTER TABLE listings DROP COLUMN search_vector;
+        - sql:
+            sql: >-
+              ALTER TABLE listings ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
+                setweight(to_tsvector('pg_catalog.simple', normalize_listing_search_text(coalesce(title, ''))), 'A') ||
+                setweight(to_tsvector('pg_catalog.simple', normalize_listing_search_text(coalesce(description, ''))), 'D')
+              ) STORED;
+        - sql:
+            sql: CREATE INDEX idx_listings_search_vector ON listings USING GIN (search_vector);
+      rollback:
+        - sql:
+            sql: ALTER TABLE listings DROP COLUMN search_vector;
+        - sql:
+            sql: DROP FUNCTION normalize_listing_search_text(text);
+        - sql:
+            sql: >-
+              ALTER TABLE listings ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
+                to_tsvector('pg_catalog.simple', coalesce(title, '') || ' ' || coalesce(description, ''))
+              ) STORED;
+        - sql:
+            sql: CREATE INDEX idx_listings_search_vector ON listings USING GIN (search_vector);

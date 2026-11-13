@@ -1,10 +1,12 @@
 package org.app.vestiobackend.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
+import org.app.vestiobackend.dto.ListingSearchFilters;
 import org.app.vestiobackend.security.AuthRequired;
 import org.app.vestiobackend.service.ListingService;
 import org.springframework.http.ResponseEntity;
@@ -70,6 +72,14 @@ public class ListingController {
     @GetMapping
     public ResponseEntity<List<ListingDto>> getAllListings() {
         return ResponseEntity.ok(listingService.getAllListings());
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<ListingDto>> searchListings(
+            @Valid @ModelAttribute ListingSearchFilters filters,
+            @RequestParam(defaultValue = "12") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "0") @Min(0) int page) {
+        return ResponseEntity.ok(listingService.searchListings(filters, size, page));
     }
 
     /**

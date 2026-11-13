@@ -1,0 +1,17 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-listing-search-vector
+      author: youssef
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: >
+              ALTER TABLE listings ADD COLUMN search_vector tsvector
+              GENERATED ALWAYS AS (
+                to_tsvector('pg_catalog.simple', coalesce(title, '') || ' ' || coalesce(description, ''))
+              ) STORED;
+        - sql:
+            sql: CREATE INDEX idx_listings_search_vector ON listings USING GIN (search_vector);
+      rollback:
+        - sql:
+            sql: ALTER TABLE listings DROP COLUMN search_vector;
