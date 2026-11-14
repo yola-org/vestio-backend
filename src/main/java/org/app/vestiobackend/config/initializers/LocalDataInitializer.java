@@ -1,45 +1,30 @@
 package org.app.vestiobackend.config.initializers;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.repository.UserRepository;
-import org.app.vestiobackend.repository.ListingRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.annotation.Order;
 import org.springframework.context.annotation.Profile;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserRequest;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserResponse;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotFoundException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.UserStatusType;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.UserType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.UsernameExistsException;
 
-import javax.sql.DataSource;
 import java.util.List;
+import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
-@Slf4j
 @Profile("local")
-@Order(2)
+@RequiredArgsConstructor
 public class LocalDataInitializer implements CommandLineRunner {
 
-    private static final List<String> SEED_EMAILS = List.of(
-            "local@example.com", "seller1@example.com", "seller2@example.com",
-            "expert@example.com", "casual@example.com");
-    private static final String DEFAULT_PASSWORD = "Password123!";
+    private static final List<String> ACCOUNTS = List.of("admin", "admin2", "admin3", "admin4", "admin5");
+    private static final String DEFAULT_PASSWORD = "!Password123";
 
-    private final UserRepository userRepository;
-    private final ListingRepository listingRepository;
-    private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
     private final CognitoIdentityProviderClient cognitoClient;
 
     @Value("${cognito.user-pool-id}")
@@ -47,69 +32,60 @@ public class LocalDataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (userRepository.count() == 0 && listingRepository.count() == 0) {
-            log.info("Loading local test data from local_test_data.sql.");
-            ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
-            populator.addScript(new ClassPathResource("sql/local_test_data.sql"));
-            populator.execute(dataSource);
-        }
-
-        for (User user : userRepository.findAllByEmailIn(SEED_EMAILS)) {
-            try {
-                syncUserWithCognito(user);
-            } catch (RuntimeException e) {
-                throw new IllegalStateException("Failed to sync local Cognito user " + user.getEmail(), e);
+        for (String account : ACCOUNTS) {
+            String email = account + "@example.com";
+            String subject = ensureCognitoUser(email, account);
+            int linked = jdbcTemplate.update("""
+                    INSERT INTO users (id, email, first_name, last_name, cognito_sub, created_at, updated_at)
+                    VALUES (?, ?, ?, 'Dev', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (email) DO UPDATE
+                    SET cognito_sub = EXCLUDED.cognito_sub, updated_at = CURRENT_TIMESTAMP
+                    WHERE users.cognito_sub IS NULL
+                    """, UUID.randomUUID(), email, account, subject);
+            if (linked == 0) {
+                String existingSubject = jdbcTemplate.queryForObject(
+                        "SELECT cognito_sub FROM users WHERE email = ?", String.class, email);
+                if (!subject.equals(existingSubject)) {
+                    throw new IllegalStateException("Dev user is linked to a different Cognito account: " + email);
+                }
             }
         }
-        log.info("Local data initialized. Users: {}, Listings: {}", userRepository.count(), listingRepository.count());
     }
 
-    private void syncUserWithCognito(User user) {
-        String username;
-        List<AttributeType> attributes;
-        boolean needsPassword;
-        try {
-            UserType createdUser = cognitoClient.adminCreateUser(AdminCreateUserRequest.builder()
-                    .userPoolId(userPoolId)
-                    .username(user.getEmail())
-                    .userAttributes(
-                            AttributeType.builder().name("email").value(user.getEmail()).build(),
-                            AttributeType.builder().name("email_verified").value("true").build(),
-                            AttributeType.builder().name("given_name").value(user.getFirstName()).build(),
-                            AttributeType.builder().name("family_name").value(user.getLastName()).build())
-                    .messageAction("SUPPRESS")
-                    .build()).user();
-            username = createdUser.username();
-            attributes = createdUser.attributes();
-            needsPassword = true;
-        } catch (UsernameExistsException e) {
-            AdminGetUserResponse existingUser = cognitoClient.adminGetUser(AdminGetUserRequest.builder()
-                    .userPoolId(userPoolId)
-                    .username(user.getEmail())
-                    .build());
-            username = existingUser.username();
-            attributes = existingUser.userAttributes();
-            needsPassword = existingUser.userStatus() == UserStatusType.FORCE_CHANGE_PASSWORD;
-        }
-
-        String sub = attributes.stream()
+    private String ensureCognitoUser(String email, String account) {
+        AdminGetUserResponse user = getOrCreateCognitoUser(email, account);
+        String subject = user.userAttributes().stream()
                 .filter(attribute -> "sub".equals(attribute.name()))
                 .map(AttributeType::value)
-                .filter(value -> value != null && !value.isBlank())
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Cognito did not return a subject."));
-
-        if (needsPassword) {
-            cognitoClient.adminSetUserPassword(AdminSetUserPasswordRequest.builder()
-                    .userPoolId(userPoolId)
-                    .username(username)
+                .orElseThrow(() -> new IllegalStateException("Cognito subject missing for " + email));
+        if (user.userStatus() == UserStatusType.FORCE_CHANGE_PASSWORD) {
+            cognitoClient.adminSetUserPassword(request -> request.userPoolId(userPoolId)
+                    .username(user.username())
                     .password(DEFAULT_PASSWORD)
-                    .permanent(true)
-                    .build());
+                    .permanent(true));
         }
-        if (!sub.equals(user.getCognitoSub())) {
-            user.setCognitoSub(sub);
-            userRepository.save(user);
+        return subject;
+    }
+
+    private AdminGetUserResponse getOrCreateCognitoUser(String email, String account) {
+        try {
+            return cognitoClient.adminGetUser(request -> request.userPoolId(userPoolId).username(email));
+        } catch (UserNotFoundException ignored) {
+            // Create the account below.
         }
+        try {
+            cognitoClient.adminCreateUser(request -> request.userPoolId(userPoolId)
+                    .username(email)
+                    .messageAction("SUPPRESS")
+                    .userAttributes(
+                            AttributeType.builder().name("email").value(email).build(),
+                            AttributeType.builder().name("email_verified").value("true").build(),
+                            AttributeType.builder().name("given_name").value(account).build(),
+                            AttributeType.builder().name("family_name").value("Dev").build()));
+        } catch (UsernameExistsException ignored) {
+            // Another startup created the account after the lookup.
+        }
+        return cognitoClient.adminGetUser(request -> request.userPoolId(userPoolId).username(email));
     }
 }

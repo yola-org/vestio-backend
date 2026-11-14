@@ -1,22 +1,16 @@
 spring:
   config:
     import:
+      - aws-secretsmanager:DEV/PRIMARY_JDBC_URL
       - aws-secretsmanager:DEV/COGNITO/CLIENT_ID?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/JWK_SET_URI?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/CLIENT_SECRET?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/ISSUER_URI?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/REGION?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/USER_POOL_ID?prefix=COGNITO.
-  datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-  jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
-  liquibase:
-    enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yaml
+  sql:
+    init:
+      mode: never
   security:
     oauth2:
       resourceserver:

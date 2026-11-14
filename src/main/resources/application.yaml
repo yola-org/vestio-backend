@@ -2,9 +2,7 @@ spring:
   application:
     name: vestio-backend
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${PRIMARY_JDBC_URL}
   jpa:
     hibernate:
       ddl-auto: validate

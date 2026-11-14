@@ -52,12 +52,10 @@ Handles CRUD operations for listings.
 
 ## Database Management
 
-- **Database**: H2 (In-memory for tests, File-based for local).
+- **Database**: H2 for tests and dev PostgreSQL for the local profile.
 - **Migrations**: Liquibase managed via `src/main/resources/db/changelog`.
-- **Initialization**: `LocalDataInitializer` and `DatabaseInitializer` populate default data (cities, categories).
 - **CRITICAL**: Never change existing IDs (UUIDs) in `src/main/resources/sql/initial_data.sql`. These IDs are used as references in production and other environments. Changing them will break referential integrity and cause startup failures.
 
 ## AI & Development Guidelines
 
 - **SQL Data**: When adding or updating static data in `initial_data.sql`, always use new, unique UUIDs for new entries and NEVER modify existing ones.
-- **Testing**: Ensure that `local_test_data.sql` is updated if new mandatory relations are added to the schema.

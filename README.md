@@ -30,18 +30,7 @@ To run the application locally with the default `local` profile:
 
 The `local` profile is configured in `src/main/resources/application-local.yaml` and is activated by default in the `bootRun` task.
 
-Cognito configuration is not stored in the YAML files. The YAML uses the same unprefixed `COGNITO_*` names everywhere; for the `local` profile, `LocalCognitoSecretsEnvironmentPostProcessor` resolves any missing value from the matching `DEV_*` Secrets Manager entry using your default AWS credentials (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, or an instance profile):
-
-```
-COGNITO_CLIENT_ID     <- DEV_COGNITO_CLIENT_ID
-COGNITO_CLIENT_SECRET <- DEV_COGNITO_CLIENT_SECRET
-COGNITO_USER_POOL_ID  <- DEV_COGNITO_USER_POOL_ID
-COGNITO_REGION        <- DEV_COGNITO_REGION
-COGNITO_ISSUER_URI    <- DEV_COGNITO_ISSUER_URI
-COGNITO_JWK_SET_URI   <- DEV_COGNITO_JWK_SET_URI
-```
-
-Any value you export yourself wins, and the fetch is skipped when all six are set. The resolver runs only for the `local` profile; `dev` and prod are deployed with the EC2 launch template, which fetches `DEV_*` / `PROD_*` secrets, strips the prefix, and injects the unprefixed `COGNITO_*` variables into the container.
+The local profile imports `DEV/PRIMARY_JDBC_URL` and the `DEV/COGNITO/*` secrets using the AWS default credentials chain. The PostgreSQL URL includes the database username and password. Dev and prod deployments receive their environment's values from the EC2 launch template.
 
 ### AWS assets and events
 
@@ -54,22 +43,13 @@ Once the application is running, you can access the Swagger UI at:
 
 ## Local Development Profile
 
-The `local` profile is designed for easy development and manual testing.
-
-### Key Features:
-- **File-based Database**: Uses H2 database located at `./data/vestiodb`.
-- **Cognito Sync**: Automatically ensures local test users exist in the configured AWS Cognito User Pool with the default password `Password123!`.
-- **Mock Authentication**: Supports a mock token for easier API testing. See [CODE_GUIDE.md](./CODE_GUIDE.md#security--authentication) for details.
-- **Seeded Data**: Automatically populates the database with categories, cities, and test users/listings.
-
-### Local Test Users
-Several test accounts are available for local development. See [LOCAL_USERS.md](./LOCAL_USERS.md) for the list of accounts and their credentials.
+The local profile connects to dev PostgreSQL and Cognito. Liquibase applies pending schema migrations before Hibernate validates the schema. Startup provisions the default dev accounts. See [Local Users](./LOCAL_USERS.md) for sign-in details.
 
 ## Documentation Guides
 
 - **[Code Guide](./CODE_GUIDE.md)**: Overview of the project architecture, entities, and coding patterns.
 - **[Testing Guide](./TESTING_GUIDE.md)**: Strategy and instructions for writing and running tests.
-- **[Local Users](./LOCAL_USERS.md)**: Details about seeded test data and Cognito integration for local development.
+- **[Local Users](./LOCAL_USERS.md)**: Dev accounts and Cognito configuration for local development.
 
 ## Testing
 

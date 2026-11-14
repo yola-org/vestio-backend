@@ -1,16 +1,6 @@
 # Local test users
 
-The `local` Spring profile seeds an in-memory H2 database and syncs these test accounts to the dev Cognito pool. The initializer saves each account’s Cognito `sub` on its local user row. New accounts get the default password `Password123!`. Existing confirmed accounts keep their current password.
-
-| Email | Name | Test data |
-| --- | --- | --- |
-| `local@example.com` | Local User | Multiple listings |
-| `seller1@example.com` | Amina Sellers | One listing |
-| `seller2@example.com` | Youssef Buyers | No listings |
-| `expert@example.com` | Sara Expert | Multiple listings |
-| `casual@example.com` | Mehdi Casual | Mixed listings |
-
-Run the backend with the `local` profile (the Gradle `bootRun` task activates it by default) to use these seeded accounts. The database is recreated when the application stops. Do not use these test credentials outside local development.
+The `local` Spring profile provisions `admin@example.com`, `admin2@example.com`, `admin3@example.com`, `admin4@example.com`, and `admin5@example.com` in dev Cognito and PostgreSQL. New accounts use `!Password123`. Existing confirmed accounts keep their passwords. Sign in with the full email address.
 
 ## Cognito configuration
 
@@ -25,8 +15,8 @@ Deployed environments (prod and dev) read unprefixed environment variables:
 | `COGNITO_ISSUER_URI` | OAuth2 JWT issuer URI |
 | `COGNITO_JWK_SET_URI` | OAuth2 JWK set URI |
 
-The EC2 launch template fetches the `PROD_*` / `DEV_*` Secrets Manager entries, strips the prefix, and injects these variables.
+The EC2 launch template reads the environment's Secrets Manager entries and injects these variables.
 
-The local profile imports the Cognito settings from the `DEV/COGNITO/*` Secrets Manager entries using your AWS credentials. The seed sync also requires `cognito-idp:AdminCreateUser`, `cognito-idp:AdminGetUser`, and `cognito-idp:AdminSetUserPassword` on the dev user pool.
+The local profile imports the Cognito settings from the `DEV/COGNITO/*` Secrets Manager entries using your AWS credentials. Provisioning requires `cognito-idp:AdminGetUser`, `cognito-idp:AdminCreateUser`, and `cognito-idp:AdminSetUserPassword` on the dev pool.
 
 Use the email address to sign in. Cognito issues the access token with its internal username, and the API uses the token’s `sub` to find the local user.
