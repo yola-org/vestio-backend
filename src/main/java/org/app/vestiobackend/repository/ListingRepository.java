@@ -22,6 +22,9 @@ public interface ListingRepository extends JpaRepository<Listing, UUID>, JpaSpec
     @Lock(LockModeType.PESSIMISTIC_READ)
     Optional<Listing> findListingById(UUID id);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Listing> findForUpdateById(UUID id);
+
     /**
      * Locks the listing for the duration of a favorite mutation.
      *

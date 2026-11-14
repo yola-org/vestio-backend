@@ -1,0 +1,181 @@
+databaseChangeLog:
+  - property:
+      name: offerUuidDefault
+      value: gen_random_uuid()
+      dbms: postgresql
+  - property:
+      name: offerUuidDefault
+      value: RANDOM_UUID()
+      dbms: h2
+  - property:
+      name: offerMessageColumnType
+      value: TEXT
+      dbms: postgresql
+  - property:
+      name: offerMessageColumnType
+      value: VARCHAR
+      dbms: h2
+  - changeSet:
+      id: 010-create-offers
+      author: youssef-laarossi
+      changes:
+        - createTable:
+            tableName: offers
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: ${offerUuidDefault}
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: price
+                  type: DECIMAL(19, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: delivery_types
+                  type: VARCHAR(50) ARRAY
+                  constraints:
+                    nullable: false
+              - column:
+                  name: message
+                  type: ${offerMessageColumnType}
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: offers
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_offers_user
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: offers
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_offers_listing
+            onDelete: CASCADE
+        - sql:
+            sql: ALTER TABLE offers ADD CONSTRAINT ck_offers_price CHECK (price > 0 AND price <= 99999999999999999.99)
+        - createIndex:
+            tableName: offers
+            indexName: idx_offers_user
+            columns:
+              - column:
+                  name: user_id
+        - createIndex:
+            tableName: offers
+            indexName: idx_offers_listing
+            columns:
+              - column:
+                  name: listing_id
+        - createView:
+            viewName: user_offers
+            selectQuery: |
+              SELECT o.id AS offer_id, o.user_id, u.first_name, u.last_name,
+                     o.listing_id, o.price, o.delivery_types, o.message, o.created_at
+              FROM offers o
+              JOIN users u ON u.id = o.user_id
+      rollback:
+        - dropView:
+            viewName: user_offers
+        - dropTable:
+            tableName: offers
+  - changeSet:
+      id: 011-create-users-offers
+      author: youssef-laarossi
+      logicalFilePath: db/changelog/changesets/011-create-users-offers.yaml
+      changes:
+        - createView:
+            viewName: users_offers
+            selectQuery: |
+              SELECT sent.offer_id, l.user_id, sent.user_id AS buyer_id,
+                     sent.first_name AS buyer_first_name, sent.last_name AS buyer_last_name,
+                     sent.listing_id, sent.price, sent.delivery_types, sent.message, sent.created_at
+              FROM user_offers sent
+              JOIN listings l ON l.id = sent.listing_id
+      rollback:
+        - dropView:
+            viewName: users_offers
+  - changeSet:
+      id: 012-unique-offer-per-user-listing
+      author: youssef-laarossi
+      changes:
+        - addUniqueConstraint:
+            tableName: offers
+            columnNames: user_id, listing_id
+            constraintName: uq_offers_user_listing
+  - changeSet:
+      id: 013-add-offer-status
+      author: youssef-laarossi
+      changes:
+        - addColumn:
+            tableName: offers
+            columns:
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+        - dropView:
+            viewName: users_offers
+        - dropView:
+            viewName: user_offers
+        - createView:
+            viewName: user_offers
+            selectQuery: |
+              SELECT o.id AS offer_id, o.user_id, u.first_name, u.last_name,
+                     o.listing_id, o.price, o.delivery_types, o.message, o.created_at, o.status
+              FROM offers o
+              JOIN users u ON u.id = o.user_id
+        - createView:
+            viewName: users_offers
+            selectQuery: |
+              SELECT sent.offer_id, l.user_id, sent.user_id AS buyer_id,
+                     sent.first_name AS buyer_first_name, sent.last_name AS buyer_last_name,
+                     sent.listing_id, sent.price, sent.delivery_types, sent.message, sent.created_at, sent.status
+              FROM user_offers sent
+              JOIN listings l ON l.id = sent.listing_id
+      rollback:
+        - dropView:
+            viewName: users_offers
+        - dropView:
+            viewName: user_offers
+        - dropColumn:
+            tableName: offers
+            columnName: status
+        - createView:
+            viewName: user_offers
+            selectQuery: |
+              SELECT o.id AS offer_id, o.user_id, u.first_name, u.last_name,
+                     o.listing_id, o.price, o.delivery_types, o.message, o.created_at
+              FROM offers o
+              JOIN users u ON u.id = o.user_id
+        - createView:
+            viewName: users_offers
+            selectQuery: |
+              SELECT sent.offer_id, l.user_id, sent.user_id AS buyer_id,
+                     sent.first_name AS buyer_first_name, sent.last_name AS buyer_last_name,
+                     sent.listing_id, sent.price, sent.delivery_types, sent.message, sent.created_at
+              FROM user_offers sent
+              JOIN listings l ON l.id = sent.listing_id

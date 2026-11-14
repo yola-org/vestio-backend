@@ -54,6 +54,7 @@ public class ListingService {
     private final UserContext userContext;
     private final AssetService assetService;
     private final FavoriteRepository favoriteRepository;
+    private final OfferService offerService;
     private final EntityManagerFactory entityManagerFactory;
 
     /**
@@ -146,7 +147,7 @@ public class ListingService {
      */
     @Transactional
     public ListingDto updateListing(UUID id, ListingDto dto) {
-        Listing listing = listingRepository.findListingById(id)
+        Listing listing = listingRepository.findForUpdateById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();
@@ -154,6 +155,7 @@ public class ListingService {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Unauthorized to update this listing");
         }
 
+        offerService.validateListingContactTypes(listing, dto.getContactTypes());
         listingMapper.updateListingFromDto(dto, listing);
 
         if (dto.getCityIds() != null) {
@@ -226,7 +228,7 @@ public class ListingService {
      */
     @Transactional
     public void deleteListing(UUID id) {
-        Listing listing = listingRepository.findListingById(id)
+        Listing listing = listingRepository.findForUpdateById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();

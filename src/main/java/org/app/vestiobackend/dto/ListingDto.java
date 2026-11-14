@@ -42,7 +42,7 @@ public class ListingDto {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private List<UUID> assetKeys;
 
-    private List<ContactType> contactTypes;
+    private List<@NotNull ContactType> contactTypes;
 
     @NotNull(message = "Condition is required")
     private Condition condition;
