@@ -75,18 +75,7 @@ The `CognitoIdentityProviderClient` is mocked in base classes. If you need to ve
 Tests use an in-memory H2 database configured in `src/test/resources/application.yaml`. Liquibase migrations are applied automatically during test startup.
 
 ## Local Profile
-The `local` profile is designed for local development and manual testing. It provides a more persistent and pre-populated environment compared to the `test` profile.
-
-### Key Features of the `local` Profile:
-- **File-based Database**: Unlike the in-memory database used in tests, the `local` profile uses a file-based H2 database located at `./data/vestiodb`. This ensures that data persists across application restarts.
-- **Cognito Sync**:
-    - Automatically syncs all local test users to the configured AWS Cognito User Pool.
-    - If a user from `local_test_data.sql` does not exist in Cognito, it is created with the default password `Password123!`.
-    - This ensures that local accounts are fully functional with real Cognito authentication.
-- **Data Initialization**:
-    - `DatabaseInitializer`: Automatically loads core reference data (Cities and Categories) from `src/main/resources/sql/initial_data.sql`.
-    - `LocalDataInitializer`: Populates the database with sample users and listings from `src/main/resources/sql/local_test_data.sql` if the database is empty.
-- **Liquibase**: Automatically updates the database schema to the latest version.
+The `local` profile uses dev PostgreSQL and Cognito. Liquibase applies pending schema migrations at startup, then the application provisions the default dev accounts. Startup skips SQL seeding.
 
 To run the application with the local profile:
 ```bash
