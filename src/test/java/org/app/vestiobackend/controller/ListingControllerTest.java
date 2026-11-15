@@ -98,17 +98,18 @@ public class ListingControllerTest extends AbstractControllerTest {
         UUID id = listing.getId();
         MockMultipartFile image = new MockMultipartFile("images", "photo.PNG", "image/png", new byte[]{1});
         when(assetsService.putListingAsset(eq(id), any(UUID.class), eq("photo.PNG"), any(byte[].class), eq("image/png")))
-                .thenAnswer(upload -> "listings/" + id + "/" + upload.getArgument(1) + "/original.png");
+                .thenAnswer(upload -> "listings/" + id + "/" + upload.getArgument(1) + ".png");
 
         mockMvc.perform(multipart("/api/listings/{id}/assets", id).file(image)
                         .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.assetKeys.length()").value(1));
+                .andExpect(jsonPath("$.assetKeys.length()").value(1))
+                .andExpect(jsonPath("$.status").value("AWAITING_ASSETS"));
 
         mockMvc.perform(multipart(PUT, "/api/listings/{id}/assets", id).file(image)
                         .with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.status").value("AWAITING_ASSETS"));
 
         ArgumentCaptor<UUID> assetIds = ArgumentCaptor.forClass(UUID.class);
         verify(assetsService, times(2)).putListingAsset(eq(id), assetIds.capture(), eq("photo.PNG"),
@@ -119,7 +120,7 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.assetKeys.length()").value(1))
                 .andExpect(jsonPath("$.assetKeys[0]").value(replacementId.toString()));
         verify(eventPublisher).publishListingAssetsAdded(testUser.getId(), id,
-                List.of("listings/" + id + "/" + replacementId + "/original.png"));
+                List.of("listings/" + id + "/" + replacementId + ".png"));
     }
 
     @Test

@@ -19,9 +19,6 @@ import java.util.UUID;
 public interface ListingRepository extends JpaRepository<Listing, UUID>, JpaSpecificationExecutor<Listing> {
     List<Listing> findByUser(User user);
 
-    @Lock(LockModeType.PESSIMISTIC_READ)
-    Optional<Listing> findListingById(UUID id);
-
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Listing> findForUpdateById(UUID id);
 

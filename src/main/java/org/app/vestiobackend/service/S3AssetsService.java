@@ -8,6 +8,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 import java.util.List;
 import java.util.Locale;
@@ -27,7 +28,7 @@ public class S3AssetsService {
     }
 
     public String putListingAsset(UUID listingId, UUID assetId, String fileName, byte[] content, String contentType) {
-        String key = assetKey(awsProperties.s3().listingsPrefix(), listingId, assetId, fileName);
+        String key = listingAssetKey(listingId, assetId, fileName);
         putObject(key, content, contentType);
         return key;
     }
@@ -37,7 +38,14 @@ public class S3AssetsService {
     }
 
     public byte[] getListingAsset(UUID listingId, UUID assetId, String fileName) {
-        return getObject(assetKey(awsProperties.s3().listingsPrefix(), listingId, assetId, fileName));
+        try {
+            return getObject(listingAssetKey(listingId, assetId, fileName));
+        } catch (S3Exception exception) {
+            if (exception.statusCode() != 404) {
+                throw exception;
+            }
+            return getObject(assetKey(awsProperties.s3().listingsPrefix(), listingId, assetId, fileName));
+        }
     }
 
     public List<S3Object> listUserAssets(UUID userId) {
@@ -75,11 +83,11 @@ public class S3AssetsService {
     }
 
     private String assetKey(String assetPrefix, UUID ownerId, UUID assetId, String fileName) {
-        if (fileName == null || fileName.isBlank() || fileName.contains("/") || fileName.contains("\\")) {
-            throw new IllegalArgumentException("Asset file name must be a single non-empty path segment");
-        }
-        String extension = extension(fileName);
-        return "%s/%s/%s/original%s".formatted(assetPrefix, ownerId, assetId, extension);
+        return prefix(assetPrefix, ownerId) + assetId + "/original" + extension(fileName);
+    }
+
+    private String listingAssetKey(UUID listingId, UUID assetId, String fileName) {
+        return prefix(awsProperties.s3().listingsPrefix(), listingId) + assetId + extension(fileName);
     }
 
     private String prefix(String assetPrefix, UUID ownerId) {
@@ -87,6 +95,9 @@ public class S3AssetsService {
     }
 
     private String extension(String fileName) {
+        if (fileName == null || fileName.isBlank() || fileName.contains("/") || fileName.contains("\\")) {
+            throw new IllegalArgumentException("Asset file name must be a single non-empty path segment");
+        }
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex <= 0 || dotIndex == fileName.length() - 1) {
             return "";

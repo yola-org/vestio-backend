@@ -127,7 +127,9 @@ public class AuthService {
                 linkExistingUser(user, result.accessToken());
             }
 
-            return toJwtResponse(result);
+            JwtResponseDto tokens = toJwtResponse(result);
+            tokens.setDisplayName(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName()));
+            return tokens;
         } catch (UserNotFoundException | NotAuthorizedException e) {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "User not found or invalid credentials.");
         }

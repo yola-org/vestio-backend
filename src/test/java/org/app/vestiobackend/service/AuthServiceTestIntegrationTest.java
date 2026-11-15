@@ -98,6 +98,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         assertEquals("test-id-token", result.getIdToken());
         assertEquals("test-access-token", result.getAccessToken());
         assertEquals("test-refresh-token", result.getRefreshToken());
+        assertEquals(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName()), result.getDisplayName());
         verify(cognitoClient).adminInitiateAuth(any(AdminInitiateAuthRequest.class));
         entityManager.clear();
         assertEquals(user.getId(), userRepository.findByCognitoSub(sub).orElseThrow().getId());

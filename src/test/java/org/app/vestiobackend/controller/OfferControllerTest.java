@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,6 +60,44 @@ class OfferControllerTest extends AbstractControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_OFFER))
                 .andExpect(status().isUnauthorized());
+        assertEquals(0, offerCount());
+    }
+
+    @Test
+    void listsOnlyOffersSentOrReceivedByTheAuthenticatedUser() throws Exception {
+        User otherSeller = createBuyer("other-seller@example.com");
+        User otherBuyer = createBuyer("other-buyer@example.com");
+        Listing otherListing = createTestListing("Other listing", otherSeller, testCity, testCategory);
+        submitOffer(buyer, listing.getId(), VALID_OFFER).andExpect(status().isCreated());
+        submitOffer(testUser, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());
+        submitOffer(otherBuyer, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].offer.userId").value(testUser.getId().toString()))
+                .andExpect(jsonPath("$[0].offer.listingId").value(otherListing.getId().toString()))
+                .andExpect(jsonPath("$[0].listingTitle").value("Other listing"));
+
+        mockMvc.perform(get("/api/offers/received").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].offer.userId").value(buyer.getId().toString()))
+                .andExpect(jsonPath("$[0].offer.listingId").value(listing.getId().toString()))
+                .andExpect(jsonPath("$[0].listingTitle").value("Listing"));
+    }
+
+    @Test
+    void requiresAuthenticationToListSentAndReceivedOffers() throws Exception {
+        mockMvc.perform(get("/api/offers/sent")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/offers/received")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsOffersFromTheListingOwner() throws Exception {
+        submitOffer(testUser, listing.getId(), VALID_OFFER)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_CANNOT_OFFER_ON_OWN_LISTING"));
         assertEquals(0, offerCount());
     }
 
@@ -270,6 +309,54 @@ class OfferControllerTest extends AbstractControllerTest {
                 "SELECT status FROM user_offers WHERE offer_id = ?", String.class, offerId));
         assertEquals("ACCEPTED", jdbcTemplate.queryForObject(
                 "SELECT status FROM users_offers WHERE offer_id = ?", String.class, offerId));
+    }
+
+    @Test
+    void onlyTheBuyerCanEditTheirPendingOffer() throws Exception {
+        UUID offerId = createPendingOffer();
+        String path = "/api/listings/{id}/offers/{offerId}";
+        String updatedOffer = """
+                {"price":30.25,"deliveryTypes":["MEETUP"],"message":"Updated offer"}
+                """;
+
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(testUser))
+                        .contentType(MediaType.APPLICATION_JSON).content(updatedOffer))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(updatedOffer.replace("MEETUP", "PARCEL")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_INVALID_OFFER_DELIVERY_TYPES"));
+
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(updatedOffer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(offerId.toString()))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.price").value(30.25));
+
+        mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(buyer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].offer.message").value("Updated offer"))
+                .andExpect(jsonPath("$[0].listingDeliveryTypes[0]").value("MEETUP"));
+        assertEquals(1, offerCount());
+    }
+
+    @Test
+    void buyerCannotEditOrCancelAnAcceptedOffer() throws Exception {
+        UUID offerId = createPendingOffer();
+        String path = "/api/listings/{id}/offers/{offerId}";
+        mockMvc.perform(put(path + "/accept", listing.getId(), offerId).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_OFFER))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+
+        mockMvc.perform(delete(path, listing.getId(), offerId).with(authenticatedUser(buyer)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+        assertEquals(1, offerCount());
     }
 
     @Test
