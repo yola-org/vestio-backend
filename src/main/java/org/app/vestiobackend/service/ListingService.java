@@ -194,7 +194,7 @@ public class ListingService {
     }
 
     private ListingDto saveAssets(UUID id, List<MultipartFile> images, boolean replace) {
-        Listing listing = listingRepository.findListingById(id)
+        Listing listing = listingRepository.findForUpdateById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
         User currentUser = userContext.getCurrentUser();
@@ -203,15 +203,15 @@ public class ListingService {
         }
 
         List<UploadedAsset> assets = assetService.uploadListingImages(listing.getId(), images);
-        List<UUID> assetIds = assets.stream().map(UploadedAsset::id).toList();
         if (listing.getAssetKeys() == null) {
             listing.setAssetKeys(new ArrayList<>());
         }
         if (replace) {
             listing.getAssetKeys().clear();
         }
-        listing.getAssetKeys().addAll(assetIds);
-        listing.setStatus(ListingStatus.PENDING);
+        listing.getAssetKeys().addAll(assets.stream().map(UploadedAsset::id).toList());
+        listing.setStatus(ListingStatus.AWAITING_ASSETS);
+        // Keep the row locked through SQS publication so the optimizer sees the committed assets.
         listingRepository.flush();
         ListingDto result = listingMapper.toDto(listing);
         assetService.queueListingImageOptimization(currentUser.getId(), listing.getId(), assets);

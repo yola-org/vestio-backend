@@ -39,6 +39,11 @@ public class OfferService {
         Listing listing = listingRepository.findForUpdateById(listingId)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
 
+        if (listing.getUser().getId().equals(buyer.getId())) {
+            throw new BadRequestException(ErrorCode.ERR_CANNOT_OFFER_ON_OWN_LISTING,
+                    "You cannot make an offer on your own listing");
+        }
+
         if (offerRepository.existsByUserIdAndListingId(buyer.getId(), listingId)) {
             throw new ResourceAlreadyExistsException(ErrorCode.ERR_OFFER_ALREADY_EXISTS,
                     "You already made an offer on this listing");

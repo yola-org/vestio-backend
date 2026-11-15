@@ -6,6 +6,7 @@ import org.app.vestiobackend.entity.enums.ContactType;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.repository.OfferRepository;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,19 @@ class OfferServiceTest extends AbstractServiceTest {
 
     @Autowired
     private OfferRepository offerRepository;
+
+    @Test
+    void rejectsAnOfferFromTheListingOwnerWithoutSavingIt() {
+        Listing listing = createTestListing("Listing", testUser, testCity, testCategory);
+        setupSecurityContext(testUser);
+        var request = new CreateOfferRequest(BigDecimal.TEN, List.of(ContactType.MEETUP), "Offer");
+
+        BadRequestException error = assertThrows(BadRequestException.class,
+                () -> offerService.createOffer(listing.getId(), request));
+
+        assertEquals(ErrorCode.ERR_CANNOT_OFFER_ON_OWN_LISTING, error.getErrorCode());
+        assertEquals(0, offerRepository.count());
+    }
 
     @ParameterizedTest
     @MethodSource("invalidDeliveryTypes")

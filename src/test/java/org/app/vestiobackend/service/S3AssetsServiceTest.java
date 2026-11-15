@@ -62,7 +62,7 @@ class S3AssetsServiceTest {
     @ParameterizedTest
     @ValueSource(strings = {"photo", ".hidden", "photo."})
     void storesListingAssetWithoutExtensionWhenFilenameHasNoExtension(String filename) {
-        String key = "listings/%s/%s/original".formatted(ownerId, assetId);
+        String key = "listings/%s/%s".formatted(ownerId, assetId);
 
         assertThat(assets.putListingAsset(ownerId, assetId, filename, CONTENT, "image/png")).isEqualTo(key);
 
@@ -80,7 +80,8 @@ class S3AssetsServiceTest {
     @Test
     void downloadsUserAndListingAssetsFromTheirOwnPrefixes() {
         GetObjectRequest userRequest = downloadRequest("users");
-        GetObjectRequest listingRequest = downloadRequest("listings");
+        GetObjectRequest listingRequest = GetObjectRequest.builder().bucket(BUCKET)
+                .key("listings/%s/%s.png".formatted(ownerId, assetId)).build();
         when(s3.getObjectAsBytes(userRequest)).thenReturn(
                 ResponseBytes.fromByteArray(GetObjectResponse.builder().build(), CONTENT));
         when(s3.getObjectAsBytes(listingRequest)).thenReturn(
