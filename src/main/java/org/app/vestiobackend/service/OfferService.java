@@ -3,6 +3,7 @@ package org.app.vestiobackend.service;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.CreateOfferRequest;
 import org.app.vestiobackend.dto.OfferDto;
+import org.app.vestiobackend.dto.OfferSummaryDto;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.Offer;
 import org.app.vestiobackend.entity.User;
@@ -32,6 +33,18 @@ public class OfferService {
     private final ListingRepository listingRepository;
     private final OfferRepository offerRepository;
     private final UserContext userContext;
+
+    @Transactional(readOnly = true)
+    public List<OfferSummaryDto> getSentOffers() {
+        return offerRepository.findByUser_IdOrderByCreatedAtDescIdDesc(userContext.getCurrentUser().getId())
+                .stream().map(this::toOfferSummary).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OfferSummaryDto> getReceivedOffers() {
+        return offerRepository.findByListing_User_IdOrderByCreatedAtDescIdDesc(userContext.getCurrentUser().getId())
+                .stream().map(this::toOfferSummary).toList();
+    }
 
     @Transactional
     public OfferDto createOffer(UUID listingId, CreateOfferRequest request) {
@@ -99,6 +112,11 @@ public class OfferService {
         List<ContactType> deliveryTypes = Arrays.stream(offer.getDeliveryTypes()).map(ContactType::valueOf).toList();
         return new OfferDto(offer.getId(), offer.getUser().getId(), offer.getListing().getId(), offer.getPrice(),
                 deliveryTypes, offer.getMessage(), offer.getStatus(), offer.getCreatedAt());
+    }
+
+    private OfferSummaryDto toOfferSummary(Offer offer) {
+        Listing listing = offer.getListing();
+        return new OfferSummaryDto(toOfferDto(offer), listing.getTitle(), listing.getStatus());
     }
 
     void validateListingContactTypes(Listing listing, List<ContactType> contactTypes) {

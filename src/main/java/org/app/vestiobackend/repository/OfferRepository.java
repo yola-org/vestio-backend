@@ -1,6 +1,7 @@
 package org.app.vestiobackend.repository;
 
 import org.app.vestiobackend.entity.Offer;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -13,4 +14,10 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
     List<Offer> findByListingId(UUID listingId);
 
     Optional<Offer> findByIdAndListingId(UUID id, UUID listingId);
+
+    @EntityGraph(attributePaths = "listing")
+    List<Offer> findByUser_IdOrderByCreatedAtDescIdDesc(UUID userId);
+
+    @EntityGraph(attributePaths = "listing")
+    List<Offer> findByListing_User_IdOrderByCreatedAtDescIdDesc(UUID userId);
 }
