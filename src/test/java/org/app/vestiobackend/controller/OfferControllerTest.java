@@ -63,6 +63,14 @@ class OfferControllerTest extends AbstractControllerTest {
     }
 
     @Test
+    void rejectsOffersFromTheListingOwner() throws Exception {
+        submitOffer(testUser, listing.getId(), VALID_OFFER)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_CANNOT_OFFER_ON_OWN_LISTING"));
+        assertEquals(0, offerCount());
+    }
+
+    @Test
     void returnsNotFoundForUnknownListing() throws Exception {
         submitOffer(buyer, UUID.randomUUID(), VALID_OFFER)
                 .andExpect(status().isNotFound())
