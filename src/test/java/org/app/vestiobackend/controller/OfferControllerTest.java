@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -60,6 +61,36 @@ class OfferControllerTest extends AbstractControllerTest {
                         .content(VALID_OFFER))
                 .andExpect(status().isUnauthorized());
         assertEquals(0, offerCount());
+    }
+
+    @Test
+    void listsOnlyOffersSentOrReceivedByTheAuthenticatedUser() throws Exception {
+        User otherSeller = createBuyer("other-seller@example.com");
+        User otherBuyer = createBuyer("other-buyer@example.com");
+        Listing otherListing = createTestListing("Other listing", otherSeller, testCity, testCategory);
+        submitOffer(buyer, listing.getId(), VALID_OFFER).andExpect(status().isCreated());
+        submitOffer(testUser, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());
+        submitOffer(otherBuyer, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].offer.userId").value(testUser.getId().toString()))
+                .andExpect(jsonPath("$[0].offer.listingId").value(otherListing.getId().toString()))
+                .andExpect(jsonPath("$[0].listingTitle").value("Other listing"));
+
+        mockMvc.perform(get("/api/offers/received").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].offer.userId").value(buyer.getId().toString()))
+                .andExpect(jsonPath("$[0].offer.listingId").value(listing.getId().toString()))
+                .andExpect(jsonPath("$[0].listingTitle").value("Listing"));
+    }
+
+    @Test
+    void requiresAuthenticationToListSentAndReceivedOffers() throws Exception {
+        mockMvc.perform(get("/api/offers/sent")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/offers/received")).andExpect(status().isUnauthorized());
     }
 
     @Test
