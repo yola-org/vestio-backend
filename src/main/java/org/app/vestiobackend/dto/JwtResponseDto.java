@@ -17,4 +17,8 @@ public class JwtResponseDto {
     private String refreshToken;
     private Long expiresIn;
     private String tokenType;
+    private DisplayName displayName;
+
+    public record DisplayName(String firstName, String lastName) {
+    }
 }

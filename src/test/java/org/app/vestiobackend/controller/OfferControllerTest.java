@@ -312,6 +312,54 @@ class OfferControllerTest extends AbstractControllerTest {
     }
 
     @Test
+    void onlyTheBuyerCanEditTheirPendingOffer() throws Exception {
+        UUID offerId = createPendingOffer();
+        String path = "/api/listings/{id}/offers/{offerId}";
+        String updatedOffer = """
+                {"price":30.25,"deliveryTypes":["MEETUP"],"message":"Updated offer"}
+                """;
+
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(testUser))
+                        .contentType(MediaType.APPLICATION_JSON).content(updatedOffer))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(updatedOffer.replace("MEETUP", "PARCEL")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_INVALID_OFFER_DELIVERY_TYPES"));
+
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(updatedOffer))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(offerId.toString()))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.price").value(30.25));
+
+        mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(buyer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].offer.message").value("Updated offer"))
+                .andExpect(jsonPath("$[0].listingDeliveryTypes[0]").value("MEETUP"));
+        assertEquals(1, offerCount());
+    }
+
+    @Test
+    void buyerCannotEditOrCancelAnAcceptedOffer() throws Exception {
+        UUID offerId = createPendingOffer();
+        String path = "/api/listings/{id}/offers/{offerId}";
+        mockMvc.perform(put(path + "/accept", listing.getId(), offerId).with(authenticatedUser(testUser)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_OFFER))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+
+        mockMvc.perform(delete(path, listing.getId(), offerId).with(authenticatedUser(buyer)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+        assertEquals(1, offerCount());
+    }
+
+    @Test
     void onlyBuyerCanDeleteAndCanSubmitAnotherOfferAfterDeleting() throws Exception {
         UUID offerId = createPendingOffer();
         String path = "/api/listings/{id}/offers/{offerId}";

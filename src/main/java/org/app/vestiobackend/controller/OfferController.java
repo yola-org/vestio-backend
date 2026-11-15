@@ -32,6 +32,12 @@ public class OfferController {
         return offerService.createOffer(id, request);
     }
 
+    @PutMapping("/{offerId}")
+    public OfferDto updateOffer(@PathVariable UUID id, @PathVariable UUID offerId,
+                                @Valid @RequestBody CreateOfferRequest request) {
+        return offerService.updateOffer(id, offerId, request);
+    }
+
     @DeleteMapping("/{offerId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteOffer(@PathVariable UUID id, @PathVariable UUID offerId) {

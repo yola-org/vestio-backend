@@ -62,32 +62,23 @@ public class OfferService {
                     "You already made an offer on this listing");
         }
 
-        List<ContactType> deliveryTypes = request.deliveryTypes();
-        List<ContactType> listingTypes = listing.getContactTypes();
-        if (deliveryTypes == null || deliveryTypes.isEmpty()
-                || new HashSet<>(deliveryTypes).size() != deliveryTypes.size()
-                || deliveryTypes.stream().anyMatch(type -> type == null || listingTypes == null || !listingTypes.contains(type))) {
-            throw new BadRequestException(ErrorCode.ERR_INVALID_OFFER_DELIVERY_TYPES,
-                    "Choose one or more distinct delivery options offered by this listing");
-        }
-
         Offer offer = new Offer();
         offer.setUser(buyer);
         offer.setListing(listing);
-        offer.setPrice(request.price());
-        offer.setDeliveryTypes(deliveryTypes.stream().map(ContactType::name).toArray(String[]::new));
-        offer.setMessage(request.message());
+        applyOfferDetails(offer, request);
         return toOfferDto(offerRepository.saveAndFlush(offer));
     }
 
     @Transactional
+    public OfferDto updateOffer(UUID listingId, UUID offerId, CreateOfferRequest request) {
+        Offer offer = findPendingOfferForBuyer(listingId, offerId);
+        applyOfferDetails(offer, request);
+        return toOfferDto(offer);
+    }
+
+    @Transactional
     public void deleteOffer(UUID listingId, UUID offerId) {
-        User currentUser = userContext.getCurrentUser();
-        Offer offer = findOfferForUpdate(listingId, offerId);
-        if (!offer.getUser().getId().equals(currentUser.getId())) {
-            throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Only the buyer can delete this offer");
-        }
-        offerRepository.delete(offer);
+        offerRepository.delete(findPendingOfferForBuyer(listingId, offerId));
     }
 
     @Transactional
@@ -108,6 +99,32 @@ public class OfferService {
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Offer not found"));
     }
 
+    private Offer findPendingOfferForBuyer(UUID listingId, UUID offerId) {
+        User currentUser = userContext.getCurrentUser();
+        Offer offer = findOfferForUpdate(listingId, offerId);
+        if (!offer.getUser().getId().equals(currentUser.getId())) {
+            throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Only the buyer can change this offer");
+        }
+        if (offer.getStatus() != OfferStatus.PENDING) {
+            throw new BadRequestException(ErrorCode.ERR_OFFER_NOT_PENDING, "Only pending offers can be changed");
+        }
+        return offer;
+    }
+
+    private void applyOfferDetails(Offer offer, CreateOfferRequest request) {
+        List<ContactType> deliveryTypes = request.deliveryTypes();
+        List<ContactType> listingTypes = offer.getListing().getContactTypes();
+        if (deliveryTypes == null || deliveryTypes.isEmpty()
+                || new HashSet<>(deliveryTypes).size() != deliveryTypes.size()
+                || deliveryTypes.stream().anyMatch(type -> type == null || listingTypes == null || !listingTypes.contains(type))) {
+            throw new BadRequestException(ErrorCode.ERR_INVALID_OFFER_DELIVERY_TYPES,
+                    "Choose one or more distinct delivery options offered by this listing");
+        }
+        offer.setPrice(request.price());
+        offer.setDeliveryTypes(deliveryTypes.stream().map(ContactType::name).toArray(String[]::new));
+        offer.setMessage(request.message());
+    }
+
     private OfferDto toOfferDto(Offer offer) {
         List<ContactType> deliveryTypes = Arrays.stream(offer.getDeliveryTypes()).map(ContactType::valueOf).toList();
         return new OfferDto(offer.getId(), offer.getUser().getId(), offer.getListing().getId(), offer.getPrice(),
@@ -116,7 +133,7 @@ public class OfferService {
 
     private OfferSummaryDto toOfferSummary(Offer offer) {
         Listing listing = offer.getListing();
-        return new OfferSummaryDto(toOfferDto(offer), listing.getTitle(), listing.getStatus());
+        return new OfferSummaryDto(toOfferDto(offer), listing.getTitle(), listing.getStatus(), listing.getContactTypes());
     }
 
     void validateListingContactTypes(Listing listing, List<ContactType> contactTypes) {
