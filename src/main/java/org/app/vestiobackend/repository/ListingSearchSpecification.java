@@ -16,6 +16,8 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 public final class ListingSearchSpecification {
@@ -25,7 +27,8 @@ public final class ListingSearchSpecification {
     private ListingSearchSpecification() {
     }
 
-    public static Specification<Listing> matching(ListingSearchFilters filters, boolean postgres) {
+    public static Specification<Listing> matching(
+            ListingSearchFilters filters, boolean postgres, Set<UUID> categoryIds) {
         return (listing, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.equal(listing.get("status"), ListingStatus.AVAILABLE));
@@ -74,8 +77,8 @@ public final class ListingSearchSpecification {
                             builder.like(builder.lower(listing.get("description")), pattern, '!')));
                 }
             }
-            if (filters.categoryId() != null) {
-                predicates.add(builder.equal(listing.get("category").get("id"), filters.categoryId()));
+            if (!categoryIds.isEmpty()) {
+                predicates.add(listing.get("category").get("id").in(categoryIds));
             }
             if (filters.brandId() != null) {
                 predicates.add(builder.equal(listing.get("brandId"), filters.brandId()));

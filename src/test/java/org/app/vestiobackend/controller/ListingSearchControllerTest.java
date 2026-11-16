@@ -56,6 +56,45 @@ class ListingSearchControllerTest extends AbstractControllerTest {
     }
 
     @Test
+    void categoryBrowsingIncludesDescendantsWhileExactSearchDoesNot() throws Exception {
+        Category child = categoryRepository.save(Category.builder()
+                .id(UUID.randomUUID()).name("Jackets").parent(testCategory).build());
+        Category grandchild = categoryRepository.save(Category.builder()
+                .id(UUID.randomUUID()).name("Denim").parent(child).build());
+        Category unrelated = categoryRepository.save(Category.builder()
+                .id(UUID.randomUUID()).name("Accessories").build());
+
+        Listing parentListing = listingRepository.save(matchingListing());
+        Listing grandchildListing = matchingListing();
+        grandchildListing.setCategory(grandchild);
+        listingRepository.save(grandchildListing);
+        Listing hidden = matchingListing();
+        hidden.setCategory(child);
+        hidden.setStatus(ListingStatus.HIDDEN);
+        listingRepository.save(hidden);
+        Listing unrelatedListing = matchingListing();
+        unrelatedListing.setCategory(unrelated);
+        listingRepository.save(unrelatedListing);
+
+        mockMvc.perform(get("/api/listings/search")
+                        .param("categoryId", testCategory.getId().toString())
+                        .param("includeSubcategories", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+        mockMvc.perform(get("/api/listings/search")
+                        .param("categoryId", child.getId().toString())
+                        .param("includeSubcategories", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(grandchildListing.getId().toString()));
+        mockMvc.perform(get("/api/listings/search")
+                        .param("categoryId", testCategory.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(parentListing.getId().toString()));
+    }
+
+    @Test
     void combinesEveryFilterAndExcludesListingsThatFailAnyOne() throws Exception {
         Listing match = listingRepository.save(matchingListing());
         Map<String, String> filters = filtersFor(match);
