@@ -34,7 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -129,7 +131,19 @@ public class ListingService {
         Pageable pageable = PageRequest.of(page, size);
         boolean postgres = entityManagerFactory.unwrap(SessionFactoryImplementor.class)
                 .getJdbcServices().getDialect() instanceof PostgreSQLDialect;
-        return listingRepository.findBy(ListingSearchSpecification.matching(filters, postgres),
+        Set<UUID> categoryIds = new HashSet<>();
+        if (filters.categoryId() != null) {
+            categoryIds.add(filters.categoryId());
+            if (Boolean.TRUE.equals(filters.includeSubcategories())) {
+                List<UUID> parents = List.of(filters.categoryId());
+                while (!parents.isEmpty()) {
+                    parents = categoryRepository.findChildIds(parents).stream()
+                            .filter(categoryIds::add)
+                            .toList();
+                }
+            }
+        }
+        return listingRepository.findBy(ListingSearchSpecification.matching(filters, postgres, categoryIds),
                         search -> search.slice(pageable)).stream()
                 .map(listingMapper::toDto)
                 .toList();

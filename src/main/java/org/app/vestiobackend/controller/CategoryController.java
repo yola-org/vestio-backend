@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,15 +32,17 @@ public class CategoryController {
                 .map(categoryMapper::toDto)
                 .toList();
 
-        List<CategoryDto> hierarchy = dtos.stream()
-                .filter(dto -> dto.getParentId() == null)
-                .peek(root -> root.setSubCategories(
-                        dtos.stream()
-                                .filter(sub -> root.getId().equals(sub.getParentId()))
-                                .collect(Collectors.toList())
-                ))
-                .collect(Collectors.toList());
+        Map<UUID, List<CategoryDto>> childrenByParent = dtos.stream()
+                .filter(dto -> dto.getParentId() != null)
+                .collect(Collectors.groupingBy(CategoryDto::getParentId));
 
-        return ResponseEntity.ok(hierarchy);
+        dtos.forEach(dto -> {
+            List<CategoryDto> children = childrenByParent.get(dto.getId());
+            if (dto.getParentId() == null || children != null) {
+                dto.setSubCategories(children == null ? List.of() : children);
+            }
+        });
+
+        return ResponseEntity.ok(dtos.stream().filter(dto -> dto.getParentId() == null).toList());
     }
 }

@@ -11,6 +11,7 @@ import java.util.UUID;
 public record ListingSearchFilters(
         String query,
         UUID categoryId,
+        Boolean includeSubcategories,
         UUID brandId,
         UUID cityId,
         UUID sizeId,
