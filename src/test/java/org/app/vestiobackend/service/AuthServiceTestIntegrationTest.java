@@ -51,7 +51,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         // Verify DB record
         User user = userRepository.findByCognitoSub(sub).orElseThrow();
         assertEquals(request.getEmail(), user.getEmail());
-        assertNotEquals(sub, user.getId().toString());
+        assertEquals(sub, user.getId().toString());
     }
 
     @Test

@@ -89,7 +89,7 @@ public class AuthService {
 
         // 2. Save user in local DB
         User user = userMapper.signupRequestToUser(request);
-        user.setId(UUID.randomUUID());
+        user.setId(UUID.fromString(response.userSub()));
         user.setCognitoSub(response.userSub());
 
         userRepository.save(user);

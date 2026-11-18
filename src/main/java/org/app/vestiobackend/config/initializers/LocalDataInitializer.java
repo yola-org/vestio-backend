@@ -41,7 +41,7 @@ public class LocalDataInitializer implements CommandLineRunner {
                     ON CONFLICT (email) DO UPDATE
                     SET cognito_sub = EXCLUDED.cognito_sub, updated_at = CURRENT_TIMESTAMP
                     WHERE users.cognito_sub IS NULL
-                    """, UUID.randomUUID(), email, account, subject);
+                    """, UUID.fromString(subject), email, account, subject);
             if (linked == 0) {
                 String existingSubject = jdbcTemplate.queryForObject(
                         "SELECT cognito_sub FROM users WHERE email = ?", String.class, email);

@@ -20,3 +20,5 @@ The EC2 launch template reads the environment's Secrets Manager entries and inje
 The local profile imports the Cognito settings from the `DEV/COGNITO/*` Secrets Manager entries using your AWS credentials. Provisioning requires `cognito-idp:AdminGetUser`, `cognito-idp:AdminCreateUser`, and `cognito-idp:AdminSetUserPassword` on the dev pool.
 
 Use the email address to sign in. Cognito issues the access token with its internal username, and the API uses the token’s `sub` to find the local user.
+
+Newly seeded database users use the Cognito `sub` as their `id`. Existing database rows retain their IDs and require a separate migration if their IDs differ from `sub`.
