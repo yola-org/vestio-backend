@@ -183,7 +183,7 @@ matches its ID. The canonical fixture is shared by common, backend and Lambda.
 ### Shared events library
 
 Notifications, enums, realtime event payloads and the AppSync publisher use
-`com.vestio:vestio-common:0.3.0` from GitHub Packages. Spring repositories and
+`com.vestio:vestio-common:0.4.0` from GitHub Packages. Spring repositories and
 transaction listeners remain in this application. Shared JPA entities are included
 in the application's entity scan.
 
@@ -209,3 +209,16 @@ Authenticated `GET /api/listings/mine` returns the current user's listings acros
 all statuses. `GET /api/listings/pending` returns their `AWAITING_ASSETS` and
 `PENDING` listings. Both accept `page` (zero based) and `size` (1–100, default 12)
 and sort newest first. They never return another user's listings.
+
+### Offer notifications
+
+Creating an offer saves one `offer-sent` notification for the listing owner in
+the same transaction. Its shared `OfferSentPayload` contains `offerId`, numeric
+`amount`, `senderId`, `senderName` and `listingTitle`. `listingId` is a notification
+field. Names and prices come from persisted backend entities; clients cannot
+choose the recipient or sender name. Rejected and duplicate offers do not notify.
+The shared AppSync publisher sends the notification after commit; live-send
+failures leave the offer and inbox entry saved. Rolled-back offers never publish.
+
+Merge the common feature first and publish `vestio-common:0.4.0` before merging
+this backend branch. Its local checks were run against the matching common source.
