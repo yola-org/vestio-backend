@@ -3,9 +3,9 @@ package org.app.vestiobackend.controller;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.app.vestiobackend.service.S3AssetsService;
 import org.app.vestiobackend.service.SqsEventPublisher;
 import org.junit.jupiter.api.Test;
@@ -116,9 +116,11 @@ public class ListingControllerTest extends AbstractControllerTest {
                 any(byte[].class), eq("image/png"));
         UUID replacementId = assetIds.getValue();
         mockMvc.perform(get("/api/listings/{id}", id).with(authenticatedUser(testUser)))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/listings/mine").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.assetKeys.length()").value(1))
-                .andExpect(jsonPath("$.assetKeys[0]").value(replacementId.toString()));
+                .andExpect(jsonPath("$[0].assetKeys.length()").value(1))
+                .andExpect(jsonPath("$[0].assetKeys[0]").value(replacementId.toString()));
         verify(eventPublisher).publishListingAssetsAdded(testUser.getId(), id,
                 List.of("listings/" + id + "/" + replacementId + ".png"));
     }
@@ -153,6 +155,79 @@ public class ListingControllerTest extends AbstractControllerTest {
         mockMvc.perform(get("/api/listings/{id}", listing.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Nice Jeans"));
+    }
+
+    @Test
+    void publicListingReadsOnlyReturnAvailableListings() throws Exception {
+        Listing ready = createTestListing("Ready", testUser, testCity, testCategory);
+        for (ListingStatus state : ListingStatus.values()) {
+            if (state == ListingStatus.AVAILABLE) continue;
+            Listing unavailable = createTestListing("Unavailable " + state, testUser, testCity, testCategory);
+            unavailable.setStatus(state);
+            listingRepository.saveAndFlush(unavailable);
+            mockMvc.perform(get("/api/listings/{id}", unavailable.getId()))
+                    .andExpect(status().isNotFound());
+            mockMvc.perform(get("/api/listings/{id}", unavailable.getId()).with(authenticatedUser(testUser)))
+                    .andExpect(status().isNotFound());
+        }
+        for (String endpoint : List.of("/api/listings", "/api/listings/search")) {
+            mockMvc.perform(get(endpoint))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].id").value(ready.getId().toString()))
+                    .andExpect(jsonPath("$[0].status").value("AVAILABLE"));
+        }
+    }
+
+    @Test
+    void ownListingsIncludeEveryStatusAndPendingIncludesProcessingListings() throws Exception {
+        User other = createSeller();
+        List<String> ownIds = new java.util.ArrayList<>();
+        List<String> pendingIds = new java.util.ArrayList<>();
+        for (ListingStatus state : ListingStatus.values()) {
+            Listing own = createTestListing("My " + state, testUser, testCity, testCategory);
+            own.setStatus(state);
+            listingRepository.saveAndFlush(own);
+            ownIds.add(own.getId().toString());
+            if (state == ListingStatus.AWAITING_ASSETS || state == ListingStatus.PENDING) pendingIds.add(own.getId().toString());
+            Listing privateListing = createTestListing("Other " + state, other, testCity, testCategory);
+            privateListing.setStatus(state);
+            listingRepository.saveAndFlush(privateListing);
+        }
+        mockMvc.perform(get("/api/listings/mine"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/listings/mine").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.containsInAnyOrder(ownIds.toArray())));
+        mockMvc.perform(get("/api/listings/pending").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.containsInAnyOrder(pendingIds.toArray())));
+        mockMvc.perform(get("/api/listings/mine").param("size", "1").param("page", "0").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(ownIds.getLast()));
+        for (String query : List.of("size=0", "size=101", "page=-1")) {
+            mockMvc.perform(get("/api/listings/mine?" + query).with(authenticatedUser(testUser)))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    @Test
+    void favoritesOnlyReturnListingsThatAreStillAvailable() throws Exception {
+        User seller = createSeller();
+        UUID availableId = null;
+        for (ListingStatus state : ListingStatus.values()) {
+            Listing listing = createTestListing("Favorite " + state, seller, testCity, testCategory);
+            mockMvc.perform(post("/api/listings/{id}/favorite", listing.getId()).with(authenticatedUser(testUser)))
+                    .andExpect(status().isOk());
+            listing.setStatus(state);
+            listingRepository.saveAndFlush(listing);
+            if (state == ListingStatus.AVAILABLE) availableId = listing.getId();
+        }
+        mockMvc.perform(get("/api/listings/favorites").with(authenticatedUser(testUser)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(availableId.toString()));
     }
 
     @Test
@@ -334,7 +409,6 @@ public class ListingControllerTest extends AbstractControllerTest {
     private User createSeller() {
         return userRepository.save(User.builder()
                 .id(UUID.randomUUID())
-                .cognitoSub(UUID.randomUUID().toString())
                 .email("seller@example.com")
                 .firstName("Test")
                 .lastName("Seller")

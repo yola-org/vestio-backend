@@ -3,7 +3,7 @@ package org.app.vestiobackend.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.app.vestiobackend.entity.enums.OfferStatus;
+import com.vestio.common.entity.enums.OfferStatus;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;

@@ -36,18 +36,18 @@ public class UserContextTest extends AbstractServiceTest {
 
     @Test
     public void getCurrentUserIdShouldReturnSubFromJwt() {
-        String testSub = UUID.randomUUID().toString();
-        setupSecurityContext(testSub);
+        String testUserId = UUID.randomUUID().toString();
+        setupSecurityContext(testUserId);
         String userId = userContext.getCurrentUserId();
-        assertThat(userId).isEqualTo(testSub);
+        assertThat(userId).isEqualTo(testUserId);
     }
 
     @Test
     public void getClaimShouldReturnClaimValueFromJwt() {
-        String testSub = UUID.randomUUID().toString();
-        setupSecurityContext(testSub);
+        String testUserId = UUID.randomUUID().toString();
+        setupSecurityContext(testUserId);
         String username = userContext.getClaim("username");
-        assertThat(username).isEqualTo(testSub);
+        assertThat(username).isEqualTo(testUserId);
     }
 
     @Test
@@ -55,6 +55,7 @@ public class UserContextTest extends AbstractServiceTest {
         User user = userContext.getCurrentUser();
         assertThat(user).isNotNull();
         assertThat(user.getEmail()).isEqualTo(TEST_EMAIL);
+        assertThat(user.getId()).isEqualTo(testUser.getId());
     }
 
     @Test
@@ -95,6 +96,13 @@ public class UserContextTest extends AbstractServiceTest {
     void rejectsJwtWithBlankSubject() {
         setupSecurityContext(" ");
 
+        assertThrows(ResourceNotFoundException.class, userContext::getCurrentUser);
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"not-a-uuid", "test@example.com", "1-1-1-1-1"})
+    void rejectsMalformedSubjectsInsteadOfFallingBackToEmail(String userId) {
+        setupSecurityContext(userId);
         assertThrows(ResourceNotFoundException.class, userContext::getCurrentUser);
     }
 

@@ -1,15 +1,18 @@
 package org.app.vestiobackend.controller;
 
 import tools.jackson.databind.ObjectMapper;
+import com.vestio.common.publisher.AppSyncEventsPublisher;
+import java.util.concurrent.CompletableFuture;
+import static org.mockito.ArgumentMatchers.any;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.Size;
 import org.app.vestiobackend.entity.SizeGroup;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.ListingRepository;
@@ -30,6 +33,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -65,6 +69,9 @@ public abstract class AbstractControllerTest {
     @MockitoBean
     protected CognitoIdentityProviderClient cognitoClient;
 
+    @MockitoBean
+    protected AppSyncEventsPublisher publisher;
+
     protected final String TEST_EMAIL = "test@example.com";
 
     protected User testUser;
@@ -75,6 +82,8 @@ public abstract class AbstractControllerTest {
 
     @BeforeEach
     public void setup() {
+        when(publisher.dispatchNotificationEvent(any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
         listingRepository.deleteAll();
         userPreferenceRepository.deleteAll();
         userRepository.deleteAll();
@@ -89,7 +98,6 @@ public abstract class AbstractControllerTest {
     private void initializeDefaultData() {
         testUser = User.builder()
                 .id(UUID.randomUUID())
-                .cognitoSub(UUID.randomUUID().toString())
                 .email(TEST_EMAIL)
                 .firstName("Test")
                 .lastName("User")
@@ -155,6 +163,6 @@ public abstract class AbstractControllerTest {
 
     protected RequestPostProcessor authenticatedUser(User user) {
         return SecurityMockMvcRequestPostProcessors.jwt()
-                .jwt(jwt -> jwt.subject(user.getCognitoSub()).claim("username", user.getCognitoSub()));
+                .jwt(jwt -> jwt.subject(user.getId().toString()).claim("username", user.getId().toString()));
     }
 }

@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-use-cognito-user-ids
+      author: youssef
+      dbms: postgresql
+      runInTransaction: true
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: users
+            columnName: cognito_sub
+      changes:
+        - sqlFile:
+            path: 012-use-cognito-user-ids.sql
+            relativeToChangelogFile: true
+            splitStatements: false

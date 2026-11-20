@@ -4,13 +4,8 @@ import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.dto.ListingSearchFilters;
-import org.app.vestiobackend.entity.Category;
-import org.app.vestiobackend.entity.City;
-import org.app.vestiobackend.entity.Favorite;
-import org.app.vestiobackend.entity.Listing;
-import org.app.vestiobackend.entity.Size;
-import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import org.app.vestiobackend.entity.*;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
@@ -58,6 +53,7 @@ public class ListingService {
     private final FavoriteRepository favoriteRepository;
     private final OfferService offerService;
     private final EntityManagerFactory entityManagerFactory;
+    private final NotificationService notificationService;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -97,6 +93,7 @@ public class ListingService {
         listing.setStatus(ListingStatus.AWAITING_ASSETS);
 
         Listing saved = listingRepository.save(listing);
+        notificationService.notifyUserListingCreated(user.getId(), saved.getTitle(), saved.getId());
         return listingMapper.toDto(saved);
     }
 
@@ -109,7 +106,7 @@ public class ListingService {
      */
     @Transactional(readOnly = true)
     public ListingDto getListing(UUID id) {
-        Listing listing = listingRepository.findById(id)
+        Listing listing = listingRepository.findByIdAndStatus(id, ListingStatus.AVAILABLE)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Listing not found"));
         return listingMapper.toDto(listing);
     }
@@ -121,7 +118,7 @@ public class ListingService {
      */
     @Transactional(readOnly = true)
     public List<ListingDto> getAllListings() {
-        return listingRepository.findAll().stream()
+        return listingRepository.findByStatus(ListingStatus.AVAILABLE).stream()
                 .map(listingMapper::toDto)
                 .collect(Collectors.toList());
     }
@@ -296,7 +293,7 @@ public class ListingService {
     @Transactional(readOnly = true)
     public List<ListingDto> getFavorites() {
         User user = userContext.getCurrentUser();
-        return favoriteRepository.findByUser(user).stream()
+        return favoriteRepository.findByUserAndListingStatus(user, ListingStatus.AVAILABLE).stream()
                 .map(Favorite::getListing)
                 .map(listingMapper::toDto)
                 .toList();
@@ -317,7 +314,16 @@ public class ListingService {
     @Transactional(readOnly = true)
     public List<ListingDto> getPendingListingsForUser(int size, int page) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return listingRepository.findByUserAndStatus(userContext.getCurrentUser(), ListingStatus.PENDING, pageable).stream()
+        return listingRepository.findByUserAndStatusIn(userContext.getCurrentUser(),
+                        List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING), pageable).stream()
+                .map(listingMapper::toDto)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ListingDto> getListingsForCurrentUser(int size, int page) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        return listingRepository.findByUser(userContext.getCurrentUser(), pageable).stream()
                 .map(listingMapper::toDto)
                 .toList();
     }

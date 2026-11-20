@@ -5,9 +5,9 @@ import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,6 +36,9 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
     @Autowired
     private ListingService listingService;
 
+    @Autowired
+    private org.app.vestiobackend.repository.NotificationRepository notificationRepository;
+
     @Test
     public void createListingShouldPersistListing() {
         ListingDto dto = ListingDto.builder()
@@ -56,6 +59,14 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         assertEquals(ListingStatus.AWAITING_ASSETS, created.getStatus());
         assertEquals(testUser.getId(), created.getUserId());
         assertTrue(created.getCityIds().contains(testCity.getId()));
+        notificationRepository.flush();
+        var notifications = notificationRepository.findAll();
+        assertEquals(1, notifications.size());
+        var notification = notifications.getFirst();
+        assertNotNull(notification.getId());
+        assertEquals(com.vestio.common.entity.enums.NotificationType.LISTING_CREATED, notification.getType());
+        assertEquals(testUser.getId(), notification.getUserId());
+        assertEquals(created.getId(), notification.getListingId());
     }
 
     @Test

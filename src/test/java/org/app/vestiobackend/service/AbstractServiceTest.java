@@ -1,15 +1,18 @@
 package org.app.vestiobackend.service;
 
 import lombok.extern.slf4j.Slf4j;
+import com.vestio.common.publisher.AppSyncEventsPublisher;
+import java.util.concurrent.CompletableFuture;
+import static org.mockito.ArgumentMatchers.any;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.Size;
 import org.app.vestiobackend.entity.SizeGroup;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.ListingRepository;
@@ -65,6 +68,9 @@ public abstract class AbstractServiceTest {
     @MockitoBean
     protected CognitoIdentityProviderClient cognitoClient;
 
+    @MockitoBean
+    protected AppSyncEventsPublisher publisher;
+
     protected final String TEST_EMAIL = "test@example.com";
 
     protected User testUser;
@@ -75,6 +81,8 @@ public abstract class AbstractServiceTest {
 
     @BeforeEach
     public void setup() {
+        when(publisher.dispatchNotificationEvent(any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
         SecurityContextHolder.clearContext();
         listingRepository.deleteAll();
         userPreferenceRepository.deleteAll();
@@ -138,14 +146,14 @@ public abstract class AbstractServiceTest {
     }
 
     protected void setupSecurityContext(User user) {
-        setupSecurityContext(user.getCognitoSub());
+        setupSecurityContext(user.getId().toString());
     }
 
-    protected void setupSecurityContext(String sub) {
+    protected void setupSecurityContext(String userId) {
         Jwt jwt = Jwt.withTokenValue("test-token")
                 .header("alg", "RS256")
-                .subject(sub)
-                .claim("username", sub)
+                .subject(userId)
+                .claim("username", userId)
                 .build();
 
         Authentication authentication = mock(Authentication.class);
@@ -172,7 +180,6 @@ public abstract class AbstractServiceTest {
     protected User createTestUser(String email) {
         User user = User.builder()
                 .id(UUID.randomUUID())
-                .cognitoSub(UUID.randomUUID().toString())
                 .email(email)
                 .firstName("Test")
                 .lastName("User")

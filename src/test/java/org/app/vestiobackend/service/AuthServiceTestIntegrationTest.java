@@ -4,12 +4,9 @@ import org.app.vestiobackend.dto.JwtResponseDto;
 import org.app.vestiobackend.dto.LoginRequestDto;
 import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.http.errors.exception.InternalException;
 import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
@@ -39,9 +36,9 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         request.setLastName("Doe");
         request.setEmail("jane.doe@example.com");
         request.setPassword("Password123!");
-        String sub = UUID.randomUUID().toString();
+        String userId = UUID.randomUUID().toString();
         when(cognitoClient.signUp(any(SignUpRequest.class)))
-                .thenReturn(SignUpResponse.builder().userSub(sub).build());
+                .thenReturn(SignUpResponse.builder().userSub(userId).build());
 
         authService.signup(request);
 
@@ -49,9 +46,9 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         verify(cognitoClient).signUp(any(SignUpRequest.class));
 
         // Verify DB record
-        User user = userRepository.findByCognitoSub(sub).orElseThrow();
+        User user = userRepository.findById(UUID.fromString(userId)).orElseThrow();
         assertEquals(request.getEmail(), user.getEmail());
-        assertEquals(sub, user.getId().toString());
+        assertEquals(userId, user.getId().toString());
     }
 
     @Test
@@ -69,9 +66,6 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
     public void testLogin() {
         String email = "jane.doe@example.com";
         User user = createTestUser(email);
-        user.setCognitoSub(null);
-        userRepository.saveAndFlush(user);
-        String sub = UUID.randomUUID().toString();
 
         LoginRequestDto request = new LoginRequestDto();
         request.setEmail(email);
@@ -88,10 +82,6 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
                 .build();
 
         when(cognitoClient.adminInitiateAuth(any(AdminInitiateAuthRequest.class))).thenReturn(response);
-        when(cognitoClient.getUser(GetUserRequest.builder().accessToken("test-access-token").build()))
-                .thenReturn(GetUserResponse.builder()
-                        .userAttributes(AttributeType.builder().name("sub").value(sub).build())
-                        .build());
 
         JwtResponseDto result = authService.login(request);
 
@@ -101,7 +91,8 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         assertEquals(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName()), result.getDisplayName());
         verify(cognitoClient).adminInitiateAuth(any(AdminInitiateAuthRequest.class));
         entityManager.clear();
-        assertEquals(user.getId(), userRepository.findByCognitoSub(sub).orElseThrow().getId());
+        assertEquals(user.getId(), userRepository.findByEmail(email).orElseThrow().getId());
+        verifyNoMoreInteractions(cognitoClient);
     }
 
     @Test
@@ -160,25 +151,20 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         verifyNoMoreInteractions(cognitoClient);
     }
 
-    @ParameterizedTest
-    @ValueSource(strings = {"email", "sub"})
-    void rejectsLinkingExistingUserWhenCognitoSubjectIsMissingOrBlank(String attributeName) {
-        testUser.setCognitoSub(null);
-        userRepository.saveAndFlush(testUser);
-        LoginRequestDto request = new LoginRequestDto();
-        request.setEmail(TEST_EMAIL);
+    @Test
+    void signupUsesUserIdAsPrimaryKeyForAuthenticatedRequests() {
+        String userId = UUID.randomUUID().toString();
+        SignupRequestDto request = new SignupRequestDto();
+        request.setFirstName("Cognito");
+        request.setLastName("User");
+        request.setEmail("userId@example.com");
         request.setPassword("Password123!");
-        when(cognitoClient.adminInitiateAuth(any(AdminInitiateAuthRequest.class))).thenReturn(
-                AdminInitiateAuthResponse.builder().authenticationResult(
-                        AuthenticationResultType.builder().accessToken("test-access-token").build()).build());
-        when(cognitoClient.getUser(GetUserRequest.builder().accessToken("test-access-token").build()))
-                .thenReturn(GetUserResponse.builder().userAttributes(
-                        AttributeType.builder().name(attributeName).value(" ").build()).build());
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder().userSub(userId).build());
 
-        InternalException error = assertThrows(InternalException.class, () -> authService.login(request));
-
-        assertEquals("Cognito user is missing its subject.", error.getMessage());
-        entityManager.clear();
-        assertNull(userRepository.findByEmail(TEST_EMAIL).orElseThrow().getCognitoSub());
+        authService.signup(request);
+        setupSecurityContext(userId);
+        var context = new org.app.vestiobackend.security.UserContext(userRepository);
+        assertEquals(UUID.fromString(userId), context.getCurrentUser().getId());
+        assertEquals("userId@example.com", context.getCurrentUserEmail());
     }
 }

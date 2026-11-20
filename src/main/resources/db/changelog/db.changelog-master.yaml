@@ -19,3 +19,15 @@ databaseChangeLog:
       file: db/changelog/changesets/009-rank-listing-search.yaml
   - include:
       file: db/changelog/changesets/010-create-offers.yaml
+  - include:
+      file: db/changelog/changesets/011-create-notifications.yaml
+  - include:
+      file: db/changelog/changesets/012-use-cognito-user-ids.yaml
+  - include:
+      file: db/changelog/changesets/013-rename-notification-user-id.yaml
+  - include:
+      file: db/changelog/changesets/014-create-notification-outbox.yaml
+  - include:
+      file: db/changelog/changesets/015-optional-notification-listing-id.yaml
+  - include:
+      file: db/changelog/changesets/016-simplify-notifications.yaml

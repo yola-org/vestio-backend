@@ -1,7 +1,7 @@
 package org.app.vestiobackend.dto;
 
-import org.app.vestiobackend.entity.enums.ContactType;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ListingStatus;
 
 import java.util.List;
 

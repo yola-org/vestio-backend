@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changesets/001-create-users.yaml
+  - changeSet:
+      id: 001-add-users-cognito-sub
+      author: youssef
+      logicalFilePath: db/changelog/changesets/001-create-users.yaml
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: cognito_sub
+                  type: VARCHAR(255)
+                  constraints:
+                    unique: true
+                    uniqueConstraintName: uk_users_cognito_sub
+  - include:
+      file: db/changelog/changesets/002-create-catalog-tables.yaml
+  - include:
+      file: db/changelog/changesets/003-create-user-preferences.yaml
+  - include:
+      file: db/changelog/changesets/004-create-listings.yaml
+  - include:
+      file: db/changelog/changesets/005-create-listing-collections.yaml
+  - include:
+      file: db/changelog/changesets/006-create-listing-asset-keys.yaml
+  - include:
+      file: db/changelog/changesets/007-create-favorites.yaml
+  - include:
+      file: db/changelog/changesets/008-add-listing-search-vector.yaml
+  - include:
+      file: db/changelog/changesets/009-rank-listing-search.yaml
+  - include:
+      file: db/changelog/changesets/010-create-offers.yaml
+  - include:
+      file: db/changelog/changesets/011-create-notifications.yaml

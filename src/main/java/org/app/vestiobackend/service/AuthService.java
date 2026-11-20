@@ -90,7 +90,6 @@ public class AuthService {
         // 2. Save user in local DB
         User user = userMapper.signupRequestToUser(request);
         user.setId(UUID.fromString(response.userSub()));
-        user.setCognitoSub(response.userSub());
 
         userRepository.save(user);
     }
@@ -123,9 +122,6 @@ public class AuthService {
         try {
             AdminInitiateAuthResponse authResponse = cognitoClient.adminInitiateAuth(authRequest);
             AuthenticationResultType result = authResponse.authenticationResult();
-            if (user.getCognitoSub() == null) {
-                linkExistingUser(user, result.accessToken());
-            }
 
             JwtResponseDto tokens = toJwtResponse(result);
             tokens.setDisplayName(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName()));
@@ -157,23 +153,6 @@ public class AuthService {
                 .expiresIn(result.expiresIn().longValue())
                 .tokenType(result.tokenType())
                 .build();
-    }
-
-    private void linkExistingUser(User user, String accessToken) {
-        GetUserResponse cognitoUser = cognitoClient.getUser(GetUserRequest.builder()
-                .accessToken(accessToken)
-                .build());
-        String cognitoSub = cognitoUser.userAttributes().stream()
-                .filter(attribute -> "sub".equals(attribute.name()))
-                .map(AttributeType::value)
-                .filter(value -> value != null && !value.isBlank())
-                .findFirst()
-                .orElseThrow(() -> new InternalException(ErrorCode.ERR_INTERNAL_SERVER_ERROR,
-                        "Cognito user is missing its subject."));
-
-        if (userRepository.linkCognitoSub(user.getId(), cognitoSub) == 0) {
-            throw new UnAuthorizedException("User not found or invalid credentials.");
-        }
     }
 
     @Value("${cognito.user-pool-id}")

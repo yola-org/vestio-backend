@@ -8,7 +8,7 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.app.vestiobackend.dto.ListingSearchFilters;
 import org.app.vestiobackend.entity.Listing;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
