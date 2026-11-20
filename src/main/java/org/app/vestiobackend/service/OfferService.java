@@ -9,6 +9,8 @@ import org.app.vestiobackend.entity.Offer;
 import org.app.vestiobackend.entity.User;
 import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.OfferStatus;
+import com.vestio.common.entity.enums.NotificationType;
+import com.vestio.common.event.payload.OfferSentPayload;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsException;
@@ -25,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +36,7 @@ public class OfferService {
     private final ListingRepository listingRepository;
     private final OfferRepository offerRepository;
     private final UserContext userContext;
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<OfferSummaryDto> getSentOffers() {
@@ -66,7 +70,15 @@ public class OfferService {
         offer.setUser(buyer);
         offer.setListing(listing);
         applyOfferDetails(offer, request);
-        return toOfferDto(offerRepository.saveAndFlush(offer));
+        Offer saved = offerRepository.saveAndFlush(offer);
+        String senderName = Stream.of(buyer.getFirstName(), buyer.getLastName())
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::strip).collect(Collectors.joining(" "));
+        var payload = new OfferSentPayload(saved.getId(), saved.getPrice(), buyer.getId(),
+                senderName, listing.getTitle());
+        notificationService.notifyUser(listing.getUser().getId(), NotificationType.OFFER_SENT,
+                payload, listing.getId());
+        return toOfferDto(saved);
     }
 
     @Transactional
