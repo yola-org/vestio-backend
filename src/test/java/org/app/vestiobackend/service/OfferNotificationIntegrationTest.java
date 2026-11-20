@@ -11,8 +11,6 @@ import org.app.vestiobackend.repository.NotificationRepository;
 import org.app.vestiobackend.repository.OfferRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -24,17 +22,12 @@ class OfferNotificationIntegrationTest extends AbstractServiceTest {
     @Autowired OfferService offers;
     @Autowired OfferRepository offerRepository;
     @Autowired NotificationRepository notifications;
-    @Autowired PlatformTransactionManager transactions;
 
     @Test
-    void newOfferNotifiesOnlyTheListingOwnerAfterCommit() {
+    void newOfferNotifiesOnlyTheListingOwnerDirectly() {
         Listing listing = createTestListing("Veste en jean", testUser, testCity, testCategory);
         User buyer = buyer();
-        OfferDto offer = new TransactionTemplate(transactions).execute(status -> {
-            var saved = offers.createOffer(listing.getId(), request());
-            verifyNoInteractions(publisher);
-            return saved;
-        });
+        OfferDto offer = offers.createOffer(listing.getId(), request());
         var notification = notifications.findAll().getFirst();
         assertThat(notification.getUserId()).isEqualTo(testUser.getId());
         assertThat(notifications.countByUserIdAndReadAtIsNull(buyer.getId())).isZero();
@@ -63,27 +56,20 @@ class OfferNotificationIntegrationTest extends AbstractServiceTest {
     }
 
     @Test
-    void rolledBackOfferDoesNotSaveOrSendNotification() {
-        Listing listing = createTestListing("Shirt", testUser, testCity, testCategory);
-        buyer();
-        new TransactionTemplate(transactions).executeWithoutResult(status -> {
-            offers.createOffer(listing.getId(), request());
-            status.setRollbackOnly();
-        });
-        assertThat(offerRepository.count()).isZero();
-        assertThat(notifications.count()).isZero();
-        verifyNoInteractions(publisher);
-    }
-
-    @Test
-    void failedRealtimeSendLeavesOfferAndInboxNotificationSaved() {
+    void failedRealtimeSendRollsBackOfferAndNotificationThenAllowsRetry() {
         Listing listing = createTestListing("Shirt", testUser, testCity, testCategory);
         buyer();
         when(publisher.dispatchNotificationEvent(any()))
-                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("AppSync unavailable")));
-        assertThatCode(() -> offers.createOffer(listing.getId(), request())).doesNotThrowAnyException();
+                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("AppSync unavailable")))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        assertThatThrownBy(() -> offers.createOffer(listing.getId(), request()))
+                .isInstanceOf(java.util.concurrent.CompletionException.class);
+        assertThat(offerRepository.count()).isZero();
+        assertThat(notifications.count()).isZero();
+        offers.createOffer(listing.getId(), request());
         assertThat(offerRepository.count()).isEqualTo(1);
         assertThat(notifications.countByUserIdAndReadAtIsNull(testUser.getId())).isEqualTo(1);
+        verify(publisher, times(2)).dispatchNotificationEvent(any());
     }
 
     private User buyer() {

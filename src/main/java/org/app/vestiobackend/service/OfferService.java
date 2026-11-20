@@ -77,7 +77,7 @@ public class OfferService {
         var payload = new OfferSentPayload(saved.getId(), saved.getPrice(), buyer.getId(),
                 senderName, listing.getTitle());
         notificationService.notifyUser(listing.getUser().getId(), NotificationType.OFFER_SENT,
-                payload.toMap(), listing.getId());
+                payload, listing.getId());
         return toOfferDto(saved);
     }
 

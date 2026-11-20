@@ -4,9 +4,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.vestio.common.entity.Notification;
 import com.vestio.common.entity.enums.NotificationType;
-import com.vestio.common.event.NotificationCreated;
+import com.vestio.common.publisher.AppSyncEventsPublisher;
 import org.app.vestiobackend.repository.NotificationRepository;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,7 +17,10 @@ import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import java.time.LocalDateTime;
-import java.util.Map;
+import com.vestio.common.event.payload.NotificationPayload;
+import com.vestio.common.event.payload.ListingNotificationPayload;
+import tools.jackson.databind.ObjectMapper;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -27,31 +29,31 @@ import java.util.UUID;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
+    private final AppSyncEventsPublisher publisher;
     private final UserContext userContext;
 
     @Transactional
-    public Notification notifyUser(UUID userId, NotificationType type, Map<String, Object> payload) {
+    public Notification notifyUser(UUID userId, NotificationType type, NotificationPayload payload) {
         return notifyUser(userId, type, payload, null);
     }
 
     @Transactional
-    public Notification notifyUser(UUID userId, NotificationType type, Map<String, Object> payload, UUID listingId) {
+    public Notification notifyUser(UUID userId, NotificationType type, NotificationPayload payload, UUID listingId) {
         Notification notification = Notification.builder()
                 .userId(userId)
                 .type(type)
-                .payload(payload == null ? Map.of() : new java.util.LinkedHashMap<>(payload))
+                .payload(Objects.requireNonNull(payload, "Notification payload is required").toMap(objectMapper))
                 .listingId(listingId)
                 .build();
         Notification saved = notificationRepository.saveAndFlush(notification);
-        eventPublisher.publishEvent(new NotificationCreated(saved));
+        publisher.dispatchNotificationEvent(saved).join();
         return saved;
     }
 
     @Transactional
     public Notification notifyUserListingCreated(UUID userId, String listingTitle, UUID listingId) {
-        Map<String, Object> payload = new java.util.HashMap<>();
-        if (listingTitle != null) payload.put("listingTitle", listingTitle);
+        NotificationPayload payload = new ListingNotificationPayload(listingTitle);
         return notifyUser(userId, NotificationType.LISTING_CREATED, payload, listingId);
     }
 

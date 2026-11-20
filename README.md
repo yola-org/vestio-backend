@@ -107,15 +107,14 @@ deployment or `backend_image_tag` in its `dev` environment.
 ### Notification delivery
 
 Listing creation saves a `listing-created` notification in the listing transaction.
-After commit, the backend sends it through the shared AppSync publisher to
-`/notifications/{userId}`. Lambda saves and sends `listing-published` once all
-current image renditions exist and the listing becomes `AVAILABLE`.
+The backend service saves and flushes the notification, then directly calls the
+shared AppSync publisher and waits for completion on `/notifications/{userId}`.
+Lambda uses the same direct-send flow for `listing-published` after image processing.
+There are no internal notification events, dispatchers, listeners or outbox.
 
-Both applications use their own notification repository and the same common
-entity, enum, event envelope and publisher. Rollbacks never send events. There is
-no outbox or automatic live-delivery replay. A failed AppSync send is logged and
-the saved notification remains available through the inbox endpoints. Lambda
-waits for the publish attempt before completing its invocation.
+An AppSync failure propagates and rolls back the current notification and
+listing/offer transaction. The send occurs before commit, so a later database
+commit failure can leave a live event whose transaction did not commit.
 
 Deploy backend migration `016-simplify-notifications` before deploying Lambda.
 It drops the old outbox, renames `params` to `payload`, adds nullable `listing_id`,
@@ -142,7 +141,7 @@ History sorts newest first, with UUID as the tie breaker. `page` is zero based;
 those outside the selected page. Read operations are idempotent. Notifications
 contain `id`, `userId`, `type`, `payload`, optional `listingId`, `readAt`, and `createdAt`, matching
 the notification payload in AppSync events. Database timestamps use the existing
-local date-time format. AppSync continues publishing new notifications after commit.
+local date-time format. The service sends notifications directly after saving and flushing them.
 
 ### User identity
 
@@ -184,7 +183,7 @@ matches its ID. The canonical fixture is shared by common, backend and Lambda.
 
 Notifications, enums, realtime event payloads and the AppSync publisher use
 `com.vestio:vestio-common:0.4.0` from GitHub Packages. Spring repositories and
-transaction listeners remain in this application. Shared JPA entities are included
+notification services remain in this application. Shared JPA entities are included
 in the application's entity scan.
 
 For local builds, set the following in `~/.gradle/gradle.properties` (never commit credentials):
@@ -217,8 +216,16 @@ the same transaction. Its shared `OfferSentPayload` contains `offerId`, numeric
 `amount`, `senderId`, `senderName` and `listingTitle`. `listingId` is a notification
 field. Names and prices come from persisted backend entities; clients cannot
 choose the recipient or sender name. Rejected and duplicate offers do not notify.
-The shared AppSync publisher sends the notification after commit; live-send
-failures leave the offer and inbox entry saved. Rolled-back offers never publish.
+The service invokes the shared AppSync publisher directly after save/flush.
+A failed send rolls back both the offer and its notification, allowing a retry.
 
 Merge the common feature first and publish `vestio-common:0.4.0` before merging
 this backend branch. Its local checks were run against the matching common source.
+
+### Typed notification payloads
+
+`NotificationService.notifyUser` requires `NotificationPayload`, never an arbitrary
+map. Shared `OfferSentPayload` and `ListingNotificationPayload` implement this
+interface. Its `toMap(ObjectMapper)` uses the application's injected Jackson mapper,
+so payload classes have no manual field-to-map implementations. The persisted
+notification and frontend JSON shapes stay unchanged.
