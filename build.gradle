@@ -24,7 +24,9 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 repositories {
-    mavenCentral()
+    mavenCentral {
+        content { excludeGroup 'com.vestio' }
+    }
     maven {
         name = 'GitHubPackages'
         url = uri('https://maven.pkg.github.com/yola-org/vestio-common')
