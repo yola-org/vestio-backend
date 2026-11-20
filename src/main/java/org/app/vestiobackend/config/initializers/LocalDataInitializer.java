@@ -34,38 +34,35 @@ public class LocalDataInitializer implements CommandLineRunner {
     public void run(String... args) {
         for (String account : ACCOUNTS) {
             String email = account + "@example.com";
-            String subject = ensureCognitoUser(email, account);
-            int linked = jdbcTemplate.update("""
-                    INSERT INTO users (id, email, first_name, last_name, cognito_sub, created_at, updated_at)
-                    VALUES (?, ?, ?, 'Dev', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                    ON CONFLICT (email) DO UPDATE
-                    SET cognito_sub = EXCLUDED.cognito_sub, updated_at = CURRENT_TIMESTAMP
-                    WHERE users.cognito_sub IS NULL
-                    """, UUID.fromString(subject), email, account, subject);
-            if (linked == 0) {
-                String existingSubject = jdbcTemplate.queryForObject(
-                        "SELECT cognito_sub FROM users WHERE email = ?", String.class, email);
-                if (!subject.equals(existingSubject)) {
-                    throw new IllegalStateException("Dev user is linked to a different Cognito account: " + email);
-                }
+            UUID userId = ensureCognitoUserId(email, account);
+            jdbcTemplate.update("""
+                    INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
+                    VALUES (?, ?, ?, 'Dev', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    ON CONFLICT (email) DO NOTHING
+                    """, userId, email, account);
+            UUID existingId = jdbcTemplate.queryForObject(
+                    "SELECT id FROM users WHERE email = ?", UUID.class, email);
+            if (!userId.equals(existingId)) {
+                throw new IllegalStateException("Dev user ID does not match its Cognito account: " + email);
             }
         }
     }
 
-    private String ensureCognitoUser(String email, String account) {
+    private UUID ensureCognitoUserId(String email, String account) {
         AdminGetUserResponse user = getOrCreateCognitoUser(email, account);
-        String subject = user.userAttributes().stream()
+        UUID userId = user.userAttributes().stream()
                 .filter(attribute -> "sub".equals(attribute.name()))
                 .map(AttributeType::value)
+                .map(UUID::fromString)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Cognito subject missing for " + email));
+                .orElseThrow(() -> new IllegalStateException("Cognito user ID missing for " + email));
         if (user.userStatus() == UserStatusType.FORCE_CHANGE_PASSWORD) {
             cognitoClient.adminSetUserPassword(request -> request.userPoolId(userPoolId)
                     .username(user.username())
                     .password(DEFAULT_PASSWORD)
                     .permanent(true));
         }
-        return subject;
+        return userId;
     }
 
     private AdminGetUserResponse getOrCreateCognitoUser(String email, String account) {

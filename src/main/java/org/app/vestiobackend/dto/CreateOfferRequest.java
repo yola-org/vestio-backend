@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import org.app.vestiobackend.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ContactType;
 
 import java.math.BigDecimal;
 import java.util.List;

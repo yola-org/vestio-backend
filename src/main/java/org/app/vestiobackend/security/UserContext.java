@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Component providing access to the current authenticated user's context.
@@ -96,8 +97,13 @@ public class UserContext {
     public User getCurrentUser() {
         Optional<User> user;
         if (getPrincipal() instanceof Jwt jwt) {
-            String sub = jwt.getSubject();
-            user = sub == null || sub.isBlank() ? Optional.empty() : userRepository.findByCognitoSub(sub);
+            String userId = jwt.getSubject();
+            try {
+                UUID id = UUID.fromString(userId);
+                user = id.toString().equalsIgnoreCase(userId) ? userRepository.findById(id) : Optional.empty();
+            } catch (IllegalArgumentException | NullPointerException exception) {
+                user = Optional.empty();
+            }
         } else {
             user = userRepository.findByEmail(getCurrentUserEmail());
         }

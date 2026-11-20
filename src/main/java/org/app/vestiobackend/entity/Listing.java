@@ -2,9 +2,9 @@ package org.app.vestiobackend.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
-import org.app.vestiobackend.entity.enums.ListingStatus;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ListingStatus;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 

@@ -2,7 +2,7 @@ package org.app.vestiobackend.service;
 
 import org.app.vestiobackend.dto.CreateOfferRequest;
 import org.app.vestiobackend.entity.Listing;
-import org.app.vestiobackend.entity.enums.ContactType;
+import com.vestio.common.entity.enums.ContactType;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.repository.OfferRepository;

@@ -45,6 +45,18 @@ Once the application is running, you can access the Swagger UI at:
 
 The local profile connects to dev PostgreSQL and Cognito. Liquibase applies pending schema migrations before Hibernate validates the schema. Startup provisions the default dev accounts. See [Local Users](./LOCAL_USERS.md) for sign-in details.
 
+For AppSync publishing, only the `local` profile imports Parameter Store values
+from `/DEV/` in `ca-central-1` (or `AWS_REGION`). The local YAML enables
+Parameter Store and imports the path, exposing `APPSYNC_EVENTS_HTTP_ENDPOINT` and
+`APPSYNC_EVENTS_REGION` as Spring properties using your
+default AWS credentials or `AWS_PROFILE`. Your local identity needs
+`ssm:GetParametersByPath` for that path and `appsync:EventPublish` for the dev
+`chat` and `notifications` namespaces. Dev/prod continue to receive
+`APPSYNC_EVENTS_HTTP_ENDPOINT` and `APPSYNC_EVENTS_REGION` as environment variables.
+`EventsConfig` injects the resolved endpoint into the singleton publisher.
+Pass the user's ID to `dispatchEvent` and handle its returned
+`CompletableFuture` to observe publication failures.
+
 ## Documentation Guides
 
 - **[Code Guide](./CODE_GUIDE.md)**: Overview of the project architecture, entities, and coding patterns.
@@ -91,3 +103,109 @@ Packaging uses `bootJar` so the Docker build receives only the executable
 Spring Boot JAR. The existing GitLab pipeline remains available separately.
 There is no automatic infrastructure bump: `aws-infra` currently has no backend
 deployment or `backend_image_tag` in its `dev` environment.
+
+### Notification delivery
+
+Listing creation saves a `listing-created` notification in the listing transaction.
+After commit, the backend sends it through the shared AppSync publisher to
+`/notifications/{userId}`. Lambda saves and sends `listing-published` once all
+current image renditions exist and the listing becomes `AVAILABLE`.
+
+Both applications use their own notification repository and the same common
+entity, enum, event envelope and publisher. Rollbacks never send events. There is
+no outbox or automatic live-delivery replay. A failed AppSync send is logged and
+the saved notification remains available through the inbox endpoints. Lambda
+waits for the publish attempt before completing its invocation.
+
+Deploy backend migration `016-simplify-notifications` before deploying Lambda.
+It drops the old outbox, renames `params` to `payload`, adds nullable `listing_id`,
+and migrates the old pending/ready types and listing correlations. Historical
+changesets remain intact so existing databases can upgrade.
+
+Notification and event IDs use the same generated UUID. `user_id` references
+the Cognito subject UUID stored directly in `users.id`; AppSync routes using that same ID.
+
+### Notification inbox API
+
+All notification endpoints require authentication. The user ID is resolved from
+the current session; callers cannot select another user.
+
+| Method | Endpoint | Response |
+| --- | --- | --- |
+| GET | `/api/notifications?page=0&size=20&unreadOnly=false` | `{items, page, size, totalElements, totalPages, unreadCount}` |
+| GET | `/api/notifications/unread-count` | `{unreadCount}` |
+| PUT | `/api/notifications/{id}/read` | Updated notification; 404 for missing or another user's ID |
+| PUT | `/api/notifications/read-all` | 204; marks the current user's unread notifications read |
+
+History sorts newest first, with UUID as the tie breaker. `page` is zero based;
+`size` accepts 1–100. `unreadCount` always counts all unread notifications, including
+those outside the selected page. Read operations are idempotent. Notifications
+contain `id`, `userId`, `type`, `payload`, optional `listingId`, `readAt`, and `createdAt`, matching
+the notification payload in AppSync events. Database timestamps use the existing
+local date-time format. AppSync continues publishing new notifications after commit.
+
+### User identity
+
+`users.id` is the UUID from the Cognito `sub` claim. Signup and local account
+provisioning use this ID directly; JWT requests look up users by primary key.
+There is no separate Cognito-subject field or login-time identity linking.
+Listings, offers, favorites, preferences, and notifications reference this same ID.
+
+Fresh schemas do not create `cognito_sub`. Changeset `012-use-cognito-user-ids`
+upgrades existing PostgreSQL databases: it atomically remaps user IDs and all
+referencing foreign keys, preserves their constraints, then removes the legacy
+column. It halts before changing data if an existing user has a missing, invalid,
+or duplicate Cognito UUID subject. Such accounts must be linked to their actual
+Cognito subjects before upgrading. No database reset is required.
+
+To run the PostgreSQL migration tests against a disposable database, set
+`USER_ID_MIGRATION_JDBC_URL` (and optionally `USER_ID_MIGRATION_DB_USER` and
+`USER_ID_MIGRATION_DB_PASSWORD`) and run `./gradlew test --tests '*UserIdentityMigrationTest'`.
+The tests create and remove their own isolated schemas.
+
+Changeset `013-rename-notification-user-id` renames the legacy notification owner
+column to `user_id`, preserving its data, indexes, and foreign key. Notification
+JSON uses `userId` in both the HTTP API and AppSync payload. Publisher channels
+are `/<namespace>/<userId>`; clients read this ID from the JWT `sub` claim.
+
+### Shared notification contract
+
+Notifications contain a user ID, `NotificationType`, arbitrary JSON `payload`,
+optional `listingId`, ID and read/creation timestamps. JSON notification types
+use `listing-created` and `listing-published`; database enum values use uppercase
+names. Generic notifications do not need a listing.
+
+The shared `Event` envelope is `{id, type, payload, occurredAt}`. Its `EventType`
+is `notification` or `chat`; only notification payloads are implemented now.
+For notification events, `payload` is the saved notification and the event ID
+matches its ID. The canonical fixture is shared by common, backend and Lambda.
+
+### Shared events library
+
+Notifications, enums, realtime event payloads and the AppSync publisher use
+`com.vestio:vestio-common:0.3.0` from GitHub Packages. Spring repositories and
+transaction listeners remain in this application. Shared JPA entities are included
+in the application's entity scan.
+
+For local builds, set the following in `~/.gradle/gradle.properties` (never commit credentials):
+
+```properties
+gpr.user=YOUR_GITHUB_USERNAME
+gpr.key=YOUR_TOKEN_WITH_READ_PACKAGES
+```
+
+Alternatively, set `GITHUB_ACTOR` and `PACKAGES_READ_TOKEN` (or `GITHUB_TOKEN`).
+CI passes `PACKAGES_READ_TOKEN`, falling back to `INFRA_GITHUB_TOKEN`. Configure
+a token with `read:packages` and access to the `yola-org/vestio-common` package.
+The reusable Gradle workflows in `shared-workflows` must include package authentication.
+
+### Listing visibility
+
+Public `GET /api/listings`, `/api/listings/search`, and `/api/listings/{id}`
+return only `AVAILABLE` listings. A non-available detail ID returns 404. Favorite
+results also exclude listings that are no longer available.
+
+Authenticated `GET /api/listings/mine` returns the current user's listings across
+all statuses. `GET /api/listings/pending` returns their `AWAITING_ASSETS` and
+`PENDING` listings. Both accept `page` (zero based) and `size` (1–100, default 12)
+and sort newest first. They never return another user's listings.

@@ -2,8 +2,8 @@ package org.app.vestiobackend.dto;
 
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.PositiveOrZero;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
 
 import java.math.BigDecimal;
 import java.util.UUID;

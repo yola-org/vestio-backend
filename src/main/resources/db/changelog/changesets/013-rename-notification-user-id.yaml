@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-rename-notification-user-id
+      author: youssef
+      preConditions:
+        - onFail: MARK_RAN
+        - columnExists:
+            tableName: notifications
+            columnName: recipient_id
+      changes:
+        - renameColumn:
+            tableName: notifications
+            oldColumnName: recipient_id
+            newColumnName: user_id
+            columnDataType: UUID
+      rollback:
+        - renameColumn:
+            tableName: notifications
+            oldColumnName: user_id
+            newColumnName: recipient_id
+            columnDataType: UUID

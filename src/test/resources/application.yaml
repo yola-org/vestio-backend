@@ -1,6 +1,8 @@
 spring:
   cloud:
     aws:
+      parameterstore:
+        enabled: false
       secretsmanager:
         # Tests use the literal settings below and do not fetch AWS secrets.
         enabled: false
@@ -25,6 +27,8 @@ spring:
           jwk-set-uri: https://cognito-idp.ca-central-1.amazonaws.com/ca-central-1_test/.well-known/jwks.json
 
 # Literal dummy values so tests never touch AWS.
+APPSYNC_EVENTS_HTTP_ENDPOINT: https://test.appsync-api.ca-central-1.amazonaws.com/event
+
 cognito:
   region: ca-central-1
   client-id: test-client-id

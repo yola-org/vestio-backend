@@ -3,8 +3,8 @@ package org.app.vestiobackend.controller;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.entity.enums.Condition;
-import org.app.vestiobackend.entity.enums.ContactType;
+import com.vestio.common.entity.enums.Condition;
+import com.vestio.common.entity.enums.ContactType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -413,7 +413,6 @@ class OfferControllerTest extends AbstractControllerTest {
     private User createBuyer(String email) {
         return userRepository.save(User.builder()
                 .id(UUID.randomUUID())
-                .cognitoSub(UUID.randomUUID().toString())
                 .email(email)
                 .firstName("Offer")
                 .lastName("Buyer")

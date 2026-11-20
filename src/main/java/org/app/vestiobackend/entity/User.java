@@ -17,11 +17,9 @@ import java.util.UUID;
 @Builder
 public class User {
 
+    /** Cognito user pool subject (sub), also used by every user foreign key. */
     @Id
     private UUID id;
-
-    @Column(name = "cognito_sub", unique = true)
-    private String cognitoSub;
 
     @Column(nullable = false)
     private String firstName;

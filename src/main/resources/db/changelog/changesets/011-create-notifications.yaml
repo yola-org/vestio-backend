@@ -1,0 +1,83 @@
+databaseChangeLog:
+  - property:
+      name: notificationParamsType
+      value: JSONB
+      dbms: postgresql
+  - property:
+      name: notificationParamsType
+      value: JSON
+      dbms: h2
+  - changeSet:
+      id: 011-create-notifications
+      author: youssef-laarossi
+      changes:
+        - createTable:
+            tableName: notifications
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+
+              - column:
+                  name: recipient_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: type
+                  type: VARCHAR(128)
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: params
+                  type: ${notificationParamsType}
+                  constraints:
+                    nullable: false
+
+              - column:
+                  name: read_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: true
+
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: notifications
+            baseColumnNames: recipient_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_notifications_users
+            onDelete: CASCADE
+        - createIndex:
+            tableName: notifications
+            indexName: idx_notifications_user_created
+            columns:
+              - column:
+                  name: recipient_id
+              - column:
+                  name: created_at
+                  descending: true
+
+        - createIndex:
+            tableName: notifications
+            indexName: idx_notifications_user_read
+            columns:
+              - column:
+                  name: recipient_id
+              - column:
+                  name: read_at
+
+      rollback:
+        - dropTable:
+            tableName: notifications
