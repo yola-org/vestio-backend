@@ -116,10 +116,9 @@ An AppSync failure propagates and rolls back the current notification and
 listing/offer transaction. The send occurs before commit, so a later database
 commit failure can leave a live event whose transaction did not commit.
 
-Deploy backend migration `016-simplify-notifications` before deploying Lambda.
-It drops the old outbox, renames `params` to `payload`, adds nullable `listing_id`,
-and migrates the old pending/ready types and listing correlations. Historical
-changesets remain intact so existing databases can upgrade.
+The initial backend changelogs create the current notification schema directly,
+including `user_id`, JSON `payload`, nullable `listing_id`, and UTC timestamps.
+Initialize the backend database before starting Lambda.
 
 Notification and event IDs use the same generated UUID. `user_id` references
 the Cognito subject UUID stored directly in `users.id`; AppSync routes using that same ID.
@@ -140,8 +139,8 @@ History sorts newest first, with UUID as the tie breaker. `page` is zero based;
 `size` accepts 1–100. `unreadCount` always counts all unread notifications, including
 those outside the selected page. Read operations are idempotent. Notifications
 contain `id`, `userId`, `type`, `payload`, optional `listingId`, `readAt`, and `createdAt`, matching
-the notification payload in AppSync events. Database timestamps use the existing
-local date-time format. The service sends notifications directly after saving and flushing them.
+the notification payload in AppSync events. Database timestamps use `TIMESTAMP WITH TIME ZONE`
+and serialize as ISO 8601 UTC values ending in `Z`. The service sends notifications directly after saving and flushing them.
 
 ### User identity
 
@@ -150,22 +149,10 @@ provisioning use this ID directly; JWT requests look up users by primary key.
 There is no separate Cognito-subject field or login-time identity linking.
 Listings, offers, favorites, preferences, and notifications reference this same ID.
 
-Fresh schemas do not create `cognito_sub`. Changeset `012-use-cognito-user-ids`
-upgrades existing PostgreSQL databases: it atomically remaps user IDs and all
-referencing foreign keys, preserves their constraints, then removes the legacy
-column. It halts before changing data if an existing user has a missing, invalid,
-or duplicate Cognito UUID subject. Such accounts must be linked to their actual
-Cognito subjects before upgrading. No database reset is required.
-
-To run the PostgreSQL migration tests against a disposable database, set
-`USER_ID_MIGRATION_JDBC_URL` (and optionally `USER_ID_MIGRATION_DB_USER` and
-`USER_ID_MIGRATION_DB_PASSWORD`) and run `./gradlew test --tests '*UserIdentityMigrationTest'`.
-The tests create and remove their own isolated schemas.
-
-Changeset `013-rename-notification-user-id` renames the legacy notification owner
-column to `user_id`, preserving its data, indexes, and foreign key. Notification
-JSON uses `userId` in both the HTTP API and AppSync payload. Publisher channels
-are `/<namespace>/<userId>`; clients read this ID from the JWT `sub` claim.
+The initial schema uses Cognito subjects directly as `users.id` and references
+them through `user_id`. Notification JSON uses `userId` in both the HTTP API and
+AppSync payload. Publisher channels are `/<namespace>/<userId>`; clients read
+this ID from the JWT `sub` claim.
 
 ### Shared notification contract
 
@@ -182,7 +169,7 @@ matches its ID. The canonical fixture is shared by common, backend and Lambda.
 ### Shared events library
 
 Notifications, enums, realtime event payloads and the AppSync publisher use
-`com.vestio:vestio-common:0.4.0` from GitHub Packages. Spring repositories and
+`com.vestio:vestio-common:0.5.0` from GitHub Packages. Spring repositories and
 notification services remain in this application. Shared JPA entities are included
 in the application's entity scan.
 
@@ -219,7 +206,7 @@ choose the recipient or sender name. Rejected and duplicate offers do not notify
 The service invokes the shared AppSync publisher directly after save/flush.
 A failed send rolls back both the offer and its notification, allowing a retry.
 
-Merge the common feature first and publish `vestio-common:0.4.0` before merging
+Merge the common feature first and publish `vestio-common:0.5.0` before merging
 this backend branch. Its local checks were run against the matching common source.
 
 ### Typed notification payloads
@@ -229,3 +216,9 @@ map. Shared `OfferSentPayload` and `ListingNotificationPayload` implement this
 interface. Its `toMap(ObjectMapper)` uses the application's injected Jackson mapper,
 so payload classes have no manual field-to-map implementations. The persisted
 notification and frontend JSON shapes stay unchanged.
+
+## UTC timestamps
+
+All persisted audit timestamps and notification/event timestamps use `Instant`. APIs and AppSync events emit ISO 8601 UTC timestamps ending in `Z`; the frontend converts them to the browser timezone for display. Calendar dates must remain date-only. Hibernate JDBC and container JVM defaults use UTC.
+
+Release `vestio-common:0.5.0` before building these consumers. The initial Liquibase changelogs create all audit timestamp columns as `TIMESTAMP WITH TIME ZONE` from the start; no legacy timezone conversion or migration setting is required. Initialize the backend database before starting the image optimizer Lambda.

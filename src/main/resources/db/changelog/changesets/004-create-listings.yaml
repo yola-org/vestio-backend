@@ -64,12 +64,12 @@ databaseChangeLog:
                     referencedColumnNames: id
               - column:
                   name: created_at
-                  type: TIMESTAMP
+                  type: TIMESTAMP WITH TIME ZONE
                   constraints:
                     nullable: false
               - column:
                   name: updated_at
-                  type: TIMESTAMP
+                  type: TIMESTAMP WITH TIME ZONE
                   constraints:
                     nullable: false
 

@@ -1,14 +1,14 @@
 databaseChangeLog:
   - property:
-      name: notificationParamsType
+      name: notificationPayloadType
       value: JSONB
       dbms: postgresql
   - property:
-      name: notificationParamsType
+      name: notificationPayloadType
       value: JSON
       dbms: h2
   - changeSet:
-      id: 011-create-notifications
+      id: 009-create-notifications
       author: youssef-laarossi
       changes:
         - createTable:
@@ -22,7 +22,7 @@ databaseChangeLog:
                     nullable: false
 
               - column:
-                  name: recipient_id
+                  name: user_id
                   type: UUID
                   constraints:
                     nullable: false
@@ -34,27 +34,31 @@ databaseChangeLog:
                     nullable: false
 
               - column:
-                  name: params
-                  type: ${notificationParamsType}
+                  name: payload
+                  type: ${notificationPayloadType}
                   constraints:
                     nullable: false
 
               - column:
+                  name: listing_id
+                  type: UUID
+
+              - column:
                   name: read_at
-                  type: TIMESTAMP
+                  type: TIMESTAMP WITH TIME ZONE
                   constraints:
                     nullable: true
 
               - column:
                   name: created_at
-                  type: TIMESTAMP
+                  type: TIMESTAMP WITH TIME ZONE
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
 
         - addForeignKeyConstraint:
             baseTableName: notifications
-            baseColumnNames: recipient_id
+            baseColumnNames: user_id
             referencedTableName: users
             referencedColumnNames: id
             constraintName: fk_notifications_users
@@ -64,7 +68,7 @@ databaseChangeLog:
             indexName: idx_notifications_user_created
             columns:
               - column:
-                  name: recipient_id
+                  name: user_id
               - column:
                   name: created_at
                   descending: true
@@ -74,7 +78,7 @@ databaseChangeLog:
             indexName: idx_notifications_user_read
             columns:
               - column:
-                  name: recipient_id
+                  name: user_id
               - column:
                   name: read_at
 
