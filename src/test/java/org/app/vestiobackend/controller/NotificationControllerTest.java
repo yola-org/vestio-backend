@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
@@ -32,6 +32,7 @@ class NotificationControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.items[0].payload.listingTitle").value("Newer"))
                 .andExpect(jsonPath("$.items[0].userId").value(testUser.getId().toString()))
                 .andExpect(jsonPath("$.items[0].type").value("listing-created"))
+                .andExpect(jsonPath("$.items[0].createdAt").value(org.hamcrest.Matchers.endsWith("Z")))
                 .andExpect(jsonPath("$.items[0].listingId").value(newer.getListingId().toString()))
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.totalPages").value(2))
@@ -52,6 +53,8 @@ class NotificationControllerTest extends AbstractControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.readAt").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
         var readAt = objectMapper.readTree(response).path("readAt").asString();
+        assertThat(readAt).endsWith("Z");
+        assertThat(Instant.parse(readAt)).isBeforeOrEqualTo(Instant.now());
         mockMvc.perform(put("/api/notifications/{id}/read", notification.getId()).with(authenticatedUser(testUser)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.readAt").value(readAt));
         mockMvc.perform(get("/api/notifications").with(authenticatedUser(testUser)))
@@ -103,6 +106,6 @@ class NotificationControllerTest extends AbstractControllerTest {
     private Notification create(User user, String title, boolean read) {
         return notifications.saveAndFlush(Notification.builder().userId(user.getId())
                 .type(NotificationType.LISTING_CREATED).payload(Map.of("listingTitle", title)).listingId(UUID.randomUUID())
-                .readAt(read ? LocalDateTime.now().minusDays(1).withNano(0) : null).build());
+                .readAt(read ? Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS).truncatedTo(java.time.temporal.ChronoUnit.SECONDS) : null).build());
     }
 }

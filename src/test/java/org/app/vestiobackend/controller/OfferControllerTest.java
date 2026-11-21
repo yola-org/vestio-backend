@@ -219,7 +219,7 @@ class OfferControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.listingId").value(listing.getId().toString()))
                 .andExpect(jsonPath("$.deliveryTypes").value(contains("MEETUP", "DELIVERY", "PARCEL")))
                 .andExpect(jsonPath("$.message").value("Either works"))
-                .andExpect(jsonPath("$.createdAt").exists());
+                .andExpect(jsonPath("$.createdAt").value(org.hamcrest.Matchers.endsWith("Z")));
 
         UUID sentOffer = jdbcTemplate.queryForObject("""
                 SELECT offer_id FROM user_offers

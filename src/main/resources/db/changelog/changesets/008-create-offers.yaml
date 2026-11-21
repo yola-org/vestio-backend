@@ -16,7 +16,7 @@ databaseChangeLog:
       value: VARCHAR
       dbms: h2
   - changeSet:
-      id: 010-create-offers
+      id: 008-create-offers
       author: youssef-laarossi
       changes:
         - createTable:
@@ -55,8 +55,14 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
                   name: created_at
-                  type: TIMESTAMP
+                  type: TIMESTAMP WITH TIME ZONE
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
@@ -88,59 +94,10 @@ databaseChangeLog:
             columns:
               - column:
                   name: listing_id
-        - createView:
-            viewName: user_offers
-            selectQuery: |
-              SELECT o.id AS offer_id, o.user_id, u.first_name, u.last_name,
-                     o.listing_id, o.price, o.delivery_types, o.message, o.created_at
-              FROM offers o
-              JOIN users u ON u.id = o.user_id
-      rollback:
-        - dropView:
-            viewName: user_offers
-        - dropTable:
-            tableName: offers
-  - changeSet:
-      id: 011-create-users-offers
-      author: youssef-laarossi
-      logicalFilePath: db/changelog/changesets/011-create-users-offers.yaml
-      changes:
-        - createView:
-            viewName: users_offers
-            selectQuery: |
-              SELECT sent.offer_id, l.user_id, sent.user_id AS buyer_id,
-                     sent.first_name AS buyer_first_name, sent.last_name AS buyer_last_name,
-                     sent.listing_id, sent.price, sent.delivery_types, sent.message, sent.created_at
-              FROM user_offers sent
-              JOIN listings l ON l.id = sent.listing_id
-      rollback:
-        - dropView:
-            viewName: users_offers
-  - changeSet:
-      id: 012-unique-offer-per-user-listing
-      author: youssef-laarossi
-      changes:
         - addUniqueConstraint:
             tableName: offers
             columnNames: user_id, listing_id
             constraintName: uq_offers_user_listing
-  - changeSet:
-      id: 013-add-offer-status
-      author: youssef-laarossi
-      changes:
-        - addColumn:
-            tableName: offers
-            columns:
-              - column:
-                  name: status
-                  type: VARCHAR(20)
-                  defaultValue: PENDING
-                  constraints:
-                    nullable: false
-        - dropView:
-            viewName: users_offers
-        - dropView:
-            viewName: user_offers
         - createView:
             viewName: user_offers
             selectQuery: |
@@ -161,21 +118,5 @@ databaseChangeLog:
             viewName: users_offers
         - dropView:
             viewName: user_offers
-        - dropColumn:
+        - dropTable:
             tableName: offers
-            columnName: status
-        - createView:
-            viewName: user_offers
-            selectQuery: |
-              SELECT o.id AS offer_id, o.user_id, u.first_name, u.last_name,
-                     o.listing_id, o.price, o.delivery_types, o.message, o.created_at
-              FROM offers o
-              JOIN users u ON u.id = o.user_id
-        - createView:
-            viewName: users_offers
-            selectQuery: |
-              SELECT sent.offer_id, l.user_id, sent.user_id AS buyer_id,
-                     sent.first_name AS buyer_first_name, sent.last_name AS buyer_last_name,
-                     sent.listing_id, sent.price, sent.delivery_types, sent.message, sent.created_at
-              FROM user_offers sent
-              JOIN listings l ON l.id = sent.listing_id

@@ -16,7 +16,7 @@ import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import com.vestio.common.event.payload.NotificationPayload;
 import com.vestio.common.event.payload.ListingNotificationPayload;
 import tools.jackson.databind.ObjectMapper;
@@ -77,14 +77,14 @@ public class NotificationService {
     @Transactional
     public NotificationDto markRead(UUID id) {
         UUID userId = userContext.getCurrentUser().getId();
-        notificationRepository.markRead(id, userId, LocalDateTime.now());
+        notificationRepository.markRead(id, userId, Instant.now());
         return notificationRepository.findByIdAndUserId(id, userId).map(NotificationDto::from)
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Notification not found"));
     }
 
     @Transactional
     public void markAllRead() {
-        notificationRepository.markAllRead(userContext.getCurrentUser().getId(), LocalDateTime.now());
+        notificationRepository.markAllRead(userContext.getCurrentUser().getId(), Instant.now());
     }
 
 }
