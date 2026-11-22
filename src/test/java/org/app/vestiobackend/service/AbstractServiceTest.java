@@ -83,6 +83,8 @@ public abstract class AbstractServiceTest {
     public void setup() {
         when(publisher.dispatchNotificationEvent(any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+        when(publisher.dispatchEvent(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
         SecurityContextHolder.clearContext();
         listingRepository.deleteAll();
         userPreferenceRepository.deleteAll();

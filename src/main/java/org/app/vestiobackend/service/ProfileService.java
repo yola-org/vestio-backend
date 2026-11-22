@@ -1,6 +1,10 @@
 package org.app.vestiobackend.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.app.vestiobackend.entity.Category;
@@ -25,10 +29,12 @@ import java.util.stream.Collectors;
  * Service for managing user profiles and preferences.
  * Handles retrieval and updates of user profiles and preferences.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
     private final UserRepository userRepository;
+    private final AssetService assetService;
     private final UserPreferenceRepository userPreferenceRepository;
     private final CategoryRepository categoryRepository;
     private final UserContext userContext;
@@ -43,6 +49,31 @@ public class ProfileService {
     public UserProfileDto getCurrentUserProfile() {
         User user = userContext.getCurrentUser();
         return userMapper.toDto(user);
+    }
+
+    @Transactional
+    public UserProfileDto uploadProfileImage(MultipartFile image) {
+        User user = userContext.getCurrentUser();
+        String previousKey = user.getProfileImageKey();
+        String uploadedKey = assetService.uploadUserProfileImage(user.getId(), image);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status != STATUS_COMMITTED && status != STATUS_ROLLED_BACK) {
+                    return;
+                }
+                String obsoleteKey = status == STATUS_COMMITTED ? previousKey : uploadedKey;
+                if (obsoleteKey != null) {
+                    try {
+                        assetService.deleteUserProfileImage(user.getId(), obsoleteKey);
+                    } catch (RuntimeException exception) {
+                        log.warn("Could not remove obsolete profile image for user {}", user.getId(), exception);
+                    }
+                }
+            }
+        });
+        user.setProfileImageKey(uploadedKey);
+        return userMapper.toDto(userRepository.save(user));
     }
 
     /**

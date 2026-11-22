@@ -19,6 +19,6 @@ public class JwtResponseDto {
     private String tokenType;
     private DisplayName displayName;
 
-    public record DisplayName(String firstName, String lastName) {
+    public record DisplayName(String firstName, String lastName, String profileImageKey) {
     }
 }

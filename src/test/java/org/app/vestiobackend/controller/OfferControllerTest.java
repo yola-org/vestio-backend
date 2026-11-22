@@ -1,5 +1,8 @@
 package org.app.vestiobackend.controller;
 
+import org.hamcrest.Matchers;
+import java.util.concurrent.Future;
+import java.util.concurrent.ExecutorService;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
@@ -68,6 +71,12 @@ class OfferControllerTest extends AbstractControllerTest {
         User otherSeller = createBuyer("other-seller@example.com");
         User otherBuyer = createBuyer("other-buyer@example.com");
         Listing otherListing = createTestListing("Other listing", otherSeller, testCity, testCategory);
+        String profileKey = buyer.getId() + "/profile/" + UUID.randomUUID() + ".webp";
+        buyer.setProfileImageKey(profileKey);
+        userRepository.saveAndFlush(buyer);
+        UUID cover = UUID.randomUUID();
+        listing.setAssetKeys(java.util.List.of(cover, UUID.randomUUID()));
+        listingRepository.saveAndFlush(listing);
         submitOffer(buyer, listing.getId(), VALID_OFFER).andExpect(status().isCreated());
         submitOffer(testUser, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());
         submitOffer(otherBuyer, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());
@@ -84,7 +93,10 @@ class OfferControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].offer.userId").value(buyer.getId().toString()))
                 .andExpect(jsonPath("$[0].offer.listingId").value(listing.getId().toString()))
-                .andExpect(jsonPath("$[0].listingTitle").value("Listing"));
+                .andExpect(jsonPath("$[0].listingTitle").value("Listing"))
+                .andExpect(jsonPath("$[0].senderName").value("Offer Buyer"))
+                .andExpect(jsonPath("$[0].senderProfileImageKey").value(profileKey))
+                .andExpect(jsonPath("$[0].listingCoverAssetKey").value(cover.toString()));
     }
 
     @Test
@@ -178,7 +190,7 @@ class OfferControllerTest extends AbstractControllerTest {
 
     @Test
     void handlesConcurrentSubmissionsFromTheSameBuyer() throws Exception {
-        try (var executor = Executors.newFixedThreadPool(2)) {
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
             CyclicBarrier start = new CyclicBarrier(2);
             Callable<Integer> submit = () -> {
                 start.await(5, TimeUnit.SECONDS);
@@ -186,8 +198,8 @@ class OfferControllerTest extends AbstractControllerTest {
                         .andReturn().getResponse().getStatus();
             };
 
-            var first = executor.submit(submit);
-            var second = executor.submit(submit);
+            Future<Integer> first = executor.submit(submit);
+            Future<Integer> second = executor.submit(submit);
             assertEquals(List.of(201, 409), List.of(first.get(10, TimeUnit.SECONDS),
                     second.get(10, TimeUnit.SECONDS)).stream().sorted().toList());
         }
@@ -219,7 +231,7 @@ class OfferControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.listingId").value(listing.getId().toString()))
                 .andExpect(jsonPath("$.deliveryTypes").value(contains("MEETUP", "DELIVERY", "PARCEL")))
                 .andExpect(jsonPath("$.message").value("Either works"))
-                .andExpect(jsonPath("$.createdAt").value(org.hamcrest.Matchers.endsWith("Z")));
+                .andExpect(jsonPath("$.createdAt").value(Matchers.endsWith("Z")));
 
         UUID sentOffer = jdbcTemplate.queryForObject("""
                 SELECT offer_id FROM user_offers
@@ -309,6 +321,20 @@ class OfferControllerTest extends AbstractControllerTest {
                 "SELECT status FROM user_offers WHERE offer_id = ?", String.class, offerId));
         assertEquals("ACCEPTED", jdbcTemplate.queryForObject(
                 "SELECT status FROM users_offers WHERE offer_id = ?", String.class, offerId));
+        mockMvc.perform(put("/api/listings/{id}/offers/{offerId}/refuse", listing.getId(), offerId).with(authenticatedUser(testUser)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM chats", Integer.class));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages WHERE is_system = TRUE AND system_type = 'OFFER_ACCEPTED'", Integer.class));
+        UUID chatId = jdbcTemplate.queryForObject("SELECT id FROM chats", UUID.class);
+        mockMvc.perform(get("/api/notifications").with(authenticatedUser(buyer)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].type").value("offer-accepted"))
+                .andExpect(jsonPath("$.items[0].payload.offerId").value(offerId.toString()))
+                .andExpect(jsonPath("$.items[0].payload.chatId").value(chatId.toString()))
+                .andExpect(jsonPath("$.items[0].payload.ownerName").isString())
+                .andExpect(jsonPath("$.items[0].payload.buyerName").value("Offer Buyer"))
+                .andExpect(jsonPath("$.items[0].payload.listingTitle").value("Listing"));
     }
 
     @Test
@@ -400,6 +426,36 @@ class OfferControllerTest extends AbstractControllerTest {
         }
         assertEquals("PENDING", jdbcTemplate.queryForObject(
                 "SELECT status FROM offers WHERE id = ?", String.class, offerId));
+    }
+
+    @Test
+    void onlyOwnerCanRefuseAndFinalDecisionsCannotBeReversed() throws Exception {
+        UUID offerId = createPendingOffer();
+        String path = "/api/listings/{id}/offers/{offerId}/refuse";
+        mockMvc.perform(put(path, listing.getId(), offerId)).andExpect(status().isUnauthorized());
+        for (User nonOwner : List.of(buyer, createBuyer("stranger@example.com"))) {
+            mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(nonOwner)))
+                    .andExpect(status().isUnauthorized());
+        }
+        Listing other = createTestListing("Other", testUser, testCity, testCategory);
+        mockMvc.perform(put(path, other.getId(), offerId).with(authenticatedUser(testUser)))
+                .andExpect(status().isNotFound());
+        for (int i = 0; i < 2; i++) {
+            mockMvc.perform(put(path, listing.getId(), offerId).with(authenticatedUser(testUser)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REFUSED"));
+        }
+        assertEquals("REFUSED", jdbcTemplate.queryForObject("SELECT status FROM user_offers WHERE offer_id = ?", String.class, offerId));
+        assertEquals("REFUSED", jdbcTemplate.queryForObject("SELECT status FROM users_offers WHERE offer_id = ?", String.class, offerId));
+        mockMvc.perform(put("/api/listings/{id}/offers/{offerId}/accept", listing.getId(), offerId).with(authenticatedUser(testUser)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+        mockMvc.perform(put("/api/listings/{id}/offers/{offerId}", listing.getId(), offerId).with(authenticatedUser(buyer))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_OFFER))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+        mockMvc.perform(delete("/api/listings/{id}/offers/{offerId}", listing.getId(), offerId).with(authenticatedUser(buyer)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("ERR_OFFER_NOT_PENDING"));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM chats", Integer.class));
+        assertEquals(0, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages", Integer.class));
+        assertEquals(1, jdbcTemplate.queryForObject("SELECT COUNT(*) FROM notifications", Integer.class));
     }
 
     private UUID createPendingOffer() throws Exception {

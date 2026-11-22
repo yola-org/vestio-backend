@@ -35,6 +35,8 @@ public class User {
     private String city;
     private String bio;
     private String phoneNumber;
+    @Column(length = 512)
+    private String profileImageKey;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

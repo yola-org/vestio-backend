@@ -1,5 +1,6 @@
 package org.app.vestiobackend.repository;
 
+import jakarta.persistence.criteria.Subquery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
@@ -53,8 +54,8 @@ public final class ListingSearchSpecification {
 
                         String normalized = normalize(filters.query());
                         List<Expression<Boolean>> catalogMatches = new ArrayList<>();
-                        if (WHITE.matcher(normalized).find() && !StringUtils.hasText(filters.color())) {
-                            catalogMatches.add(colorMatches(query, listing, builder, "white"));
+                        if (WHITE.matcher(normalized).find() && filters.colors().isEmpty()) {
+                            catalogMatches.add(colorMatches(query, listing, builder, List.of("white")));
                         }
                         if (T_SHIRT.matcher(normalized).find() && filters.categoryId() == null) {
                             catalogMatches.add(hibernate.sql("normalize_listing_search_text(?) = 'tshirt'",
@@ -83,29 +84,32 @@ public final class ListingSearchSpecification {
             if (filters.brandId() != null) {
                 predicates.add(builder.equal(listing.get("brandId"), filters.brandId()));
             }
-            if (filters.cityId() != null) {
-                var city = query.subquery(Integer.class);
+            if (!filters.cityIds().isEmpty()) {
+                Subquery<Integer> city = query.subquery(Integer.class);
                 city.select(builder.literal(1)).where(
-                        builder.equal(city.correlate(listing).join("cities").get("id"), filters.cityId()));
+                        city.correlate(listing).join("cities").get("id").in(filters.cityIds()));
                 predicates.add(builder.exists(city));
             }
-            if (filters.sizeId() != null) {
-                var size = query.subquery(Integer.class);
+            if (!filters.sizeIds().isEmpty()) {
+                Subquery<Integer> size = query.subquery(Integer.class);
                 size.select(builder.literal(1)).where(
-                        builder.equal(size.correlate(listing).join("sizes").get("id"), filters.sizeId()));
+                        size.correlate(listing).join("sizes").get("id").in(filters.sizeIds()));
                 predicates.add(builder.exists(size));
             }
             if (StringUtils.hasText(filters.gender())) {
                 predicates.add(builder.equal(builder.lower(listing.get("gender")), normalize(filters.gender())));
             }
-            if (StringUtils.hasText(filters.color())) {
-                predicates.add(colorMatches(query, listing, builder, normalize(filters.color())));
+            if (!filters.colors().isEmpty()) {
+                predicates.add(colorMatches(query, listing, builder, filters.colors()));
             }
-            if (filters.condition() != null) {
-                predicates.add(builder.equal(listing.get("condition"), filters.condition()));
+            if (!filters.conditions().isEmpty()) {
+                predicates.add(listing.get("condition").in(filters.conditions()));
             }
-            if (filters.contactType() != null) {
-                predicates.add(builder.isMember(filters.contactType(), listing.get("contactTypes")));
+            if (!filters.contactTypes().isEmpty()) {
+                Subquery<Integer> contactType = query.subquery(Integer.class);
+                contactType.select(builder.literal(1)).where(
+                        contactType.correlate(listing).join("contactTypes").in(filters.contactTypes()));
+                predicates.add(builder.exists(contactType));
             }
             if (filters.minPrice() != null) {
                 predicates.add(builder.ge(listing.get("price"), filters.minPrice()));
@@ -124,10 +128,11 @@ public final class ListingSearchSpecification {
     }
 
     private static Predicate colorMatches(
-            CriteriaQuery<?> query, Root<Listing> listing, CriteriaBuilder builder, String color) {
-        var colors = query.subquery(Integer.class);
+            CriteriaQuery<?> query, Root<Listing> listing, CriteriaBuilder builder, List<String> selectedColors) {
+        Subquery<Integer> colors = query.subquery(Integer.class);
         colors.select(builder.literal(1)).where(
-                builder.equal(builder.lower(colors.correlate(listing).join("colors")), color));
+                builder.lower(colors.correlate(listing).join("colors"))
+                        .in(selectedColors.stream().map(ListingSearchSpecification::normalize).distinct().toList()));
         return builder.exists(colors);
     }
 

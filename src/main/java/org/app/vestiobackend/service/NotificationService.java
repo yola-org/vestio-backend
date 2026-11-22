@@ -1,5 +1,6 @@
 package org.app.vestiobackend.service;
 
+import org.springframework.data.domain.Page;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.vestio.common.entity.Notification;
@@ -60,8 +61,8 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public NotificationPageDto list(int page, int size, boolean unreadOnly) {
         UUID userId = userContext.getCurrentUser().getId();
-        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        var notifications = unreadOnly
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        Page<Notification> notifications = unreadOnly
                 ? notificationRepository.findByUserIdAndReadAtIsNull(userId, pageable)
                 : notificationRepository.findByUserId(userId, pageable);
         return new NotificationPageDto(notifications.getContent().stream().map(NotificationDto::from).toList(),

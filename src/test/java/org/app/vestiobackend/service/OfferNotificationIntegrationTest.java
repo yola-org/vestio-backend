@@ -1,5 +1,7 @@
 package org.app.vestiobackend.service;
 
+import java.util.concurrent.CompletionException;
+import com.vestio.common.entity.Notification;
 import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.NotificationType;
 import org.app.vestiobackend.dto.CreateOfferRequest;
@@ -28,7 +30,7 @@ class OfferNotificationIntegrationTest extends AbstractServiceTest {
         Listing listing = createTestListing("Veste en jean", testUser, testCity, testCategory);
         User buyer = buyer();
         OfferDto offer = offers.createOffer(listing.getId(), request());
-        var notification = notifications.findAll().getFirst();
+        Notification notification = notifications.findAll().getFirst();
         assertThat(notification.getUserId()).isEqualTo(testUser.getId());
         assertThat(notifications.countByUserIdAndReadAtIsNull(buyer.getId())).isZero();
         assertThat(notification.getType()).isEqualTo(NotificationType.OFFER_SENT);
@@ -63,7 +65,7 @@ class OfferNotificationIntegrationTest extends AbstractServiceTest {
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("AppSync unavailable")))
                 .thenReturn(CompletableFuture.completedFuture(null));
         assertThatThrownBy(() -> offers.createOffer(listing.getId(), request()))
-                .isInstanceOf(java.util.concurrent.CompletionException.class);
+                .isInstanceOf(CompletionException.class);
         assertThat(offerRepository.count()).isZero();
         assertThat(notifications.count()).isZero();
         offers.createOffer(listing.getId(), request());

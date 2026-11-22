@@ -1,5 +1,6 @@
 package org.app.vestiobackend.service;
 
+import java.io.InputStream;
 import org.app.vestiobackend.config.properties.AwsProperties;
 import org.app.vestiobackend.config.properties.AwsProperties.S3;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
@@ -43,6 +45,28 @@ class S3AssetsServiceTest {
     private final UUID assetId = UUID.randomUUID();
 
     @Test
+    void profileImageKeysAreRelativeWhileStorageUsesConfiguredPrefix() {
+        S3AssetsService customAssets = new S3AssetsService(s3,
+                new AwsProperties("ca-central-1", new S3(BUCKET, "user-assets", "listings"), null));
+        String key = ownerId + "/profile/" + assetId + ".png";
+        assertThat(customAssets.putUserProfileImage(ownerId, assetId, CONTENT, "png", "image/png")).isEqualTo(key);
+        ArgumentCaptor<PutObjectRequest> upload = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(s3).putObject(upload.capture(), any(RequestBody.class));
+        assertThat(upload.getValue().key()).isEqualTo("user-assets/" + key);
+        customAssets.deleteUserProfileImage(ownerId, key);
+        ArgumentCaptor<DeleteObjectRequest> deletion = ArgumentCaptor.forClass(DeleteObjectRequest.class);
+        verify(s3).deleteObject(deletion.capture());
+        assertThat(deletion.getValue().key()).isEqualTo("user-assets/" + key);
+    }
+
+    @Test
+    void cannotDeleteAnotherUsersRelativeProfileImage() {
+        assertThatIllegalArgumentException().isThrownBy(() ->
+                assets.deleteUserProfileImage(ownerId, UUID.randomUUID() + "/profile/" + assetId + ".png"));
+        verifyNoInteractions(s3);
+    }
+
+    @Test
     void uploadsUserAssetWithNormalizedExtensionAndOriginalContent() throws Exception {
         String key = "users/%s/%s/original.png".formatted(ownerId, assetId);
         ArgumentCaptor<RequestBody> body = ArgumentCaptor.forClass(RequestBody.class);
@@ -54,7 +78,7 @@ class S3AssetsServiceTest {
         assertThat(request.getValue().bucket()).isEqualTo(BUCKET);
         assertThat(request.getValue().key()).isEqualTo(key);
         assertThat(request.getValue().contentType()).isEqualTo("image/png");
-        try (var stream = body.getValue().contentStreamProvider().newStream()) {
+        try (InputStream stream = body.getValue().contentStreamProvider().newStream()) {
             assertThat(stream.readAllBytes()).containsExactly(CONTENT);
         }
     }

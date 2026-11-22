@@ -47,7 +47,7 @@ class NotificationDeliveryIntegrationTest extends AbstractServiceTest {
 
     @Test
     void persistsTypedGenericPayloadWithoutListingId() {
-        var notification = notificationService.notifyUser(testUser.getId(), NotificationType.OFFER_CREATED,
+        Notification notification = notificationService.notifyUser(testUser.getId(), NotificationType.OFFER_CREATED,
                 new MessagePayload("Offer changed"));
         assertThat(notification.getPayload()).containsEntry("message", "Offer changed").doesNotContainKey("listingId");
         assertThat(notificationRepository.findById(notification.getId())).isPresent();

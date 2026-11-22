@@ -21,4 +21,5 @@ public class UserProfileDto {
     private String city;
     private String bio;
     private String phoneNumber;
+    private String profileImageKey;
 }

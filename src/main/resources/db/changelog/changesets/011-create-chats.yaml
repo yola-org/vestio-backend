@@ -1,0 +1,109 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-chats
+      author: youssef
+      changes:
+        - addUniqueConstraint:
+            tableName: listings
+            columnNames: id, user_id
+            constraintName: uq_listings_id_user
+        - addUniqueConstraint:
+            tableName: offers
+            columnNames: id, listing_id, user_id
+            constraintName: uq_offers_id_listing_user
+        - createTable:
+            tableName: chats
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: offer_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: buyer_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: chats
+            columnNames: listing_id, buyer_id
+            constraintName: uq_chats_listing_buyer
+        - addUniqueConstraint:
+            tableName: chats
+            columnNames: offer_id
+            constraintName: uq_chats_offer
+        - sql:
+            sql: ALTER TABLE chats ADD CONSTRAINT ck_chats_distinct_users CHECK (owner_id <> buyer_id)
+        - addForeignKeyConstraint:
+            baseTableName: chats
+            baseColumnNames: listing_id, owner_id
+            referencedTableName: listings
+            referencedColumnNames: id, user_id
+            constraintName: fk_chats_listing_owner
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: chats
+            baseColumnNames: offer_id, listing_id, buyer_id
+            referencedTableName: offers
+            referencedColumnNames: id, listing_id, user_id
+            constraintName: fk_chats_offer_listing_buyer
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: chats
+            baseColumnNames: owner_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_chats_owner_id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: chats
+            indexName: idx_chats_owner
+            columns:
+              - column:
+                  name: owner_id
+        - addForeignKeyConstraint:
+            baseTableName: chats
+            baseColumnNames: buyer_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_chats_buyer_id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: chats
+            indexName: idx_chats_buyer
+            columns:
+              - column:
+                  name: buyer_id
+      rollback:
+        - dropTable:
+            tableName: chats
+        - dropUniqueConstraint:
+            tableName: offers
+            constraintName: uq_offers_id_listing_user
+        - dropUniqueConstraint:
+            tableName: listings
+            constraintName: uq_listings_id_user

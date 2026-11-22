@@ -1,6 +1,7 @@
 package org.app.vestiobackend.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.app.vestiobackend.security.AuthRequired;
@@ -39,6 +40,11 @@ public class ProfileController {
     @PutMapping
     public ResponseEntity<UserProfileDto> updateProfile(@RequestBody UserProfileDto dto) {
         return ResponseEntity.ok(profileService.updateProfile(dto));
+    }
+
+    @PostMapping(path = "/image", consumes = "multipart/form-data")
+    public ResponseEntity<UserProfileDto> uploadImage(@RequestParam("image") MultipartFile image) {
+        return ResponseEntity.ok(profileService.uploadProfileImage(image));
     }
 
     /**

@@ -1,5 +1,8 @@
 package org.app.vestiobackend.service;
 
+import com.vestio.common.entity.enums.NotificationType;
+import org.app.vestiobackend.repository.NotificationRepository;
+import com.vestio.common.entity.Notification;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
@@ -37,7 +40,7 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
     private ListingService listingService;
 
     @Autowired
-    private org.app.vestiobackend.repository.NotificationRepository notificationRepository;
+    private NotificationRepository notificationRepository;
 
     @Test
     public void createListingShouldPersistListing() {
@@ -60,11 +63,11 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         assertEquals(testUser.getId(), created.getUserId());
         assertTrue(created.getCityIds().contains(testCity.getId()));
         notificationRepository.flush();
-        var notifications = notificationRepository.findAll();
+        List<Notification> notifications = notificationRepository.findAll();
         assertEquals(1, notifications.size());
-        var notification = notifications.getFirst();
+        Notification notification = notifications.getFirst();
         assertNotNull(notification.getId());
-        assertEquals(com.vestio.common.entity.enums.NotificationType.LISTING_CREATED, notification.getType());
+        assertEquals(NotificationType.LISTING_CREATED, notification.getType());
         assertEquals(testUser.getId(), notification.getUserId());
         assertEquals(created.getId(), notification.getListingId());
     }

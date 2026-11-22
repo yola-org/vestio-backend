@@ -1,5 +1,6 @@
 package org.app.vestiobackend.service;
 
+import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.dto.JwtResponseDto;
 import org.app.vestiobackend.dto.LoginRequestDto;
 import org.app.vestiobackend.dto.SignupRequestDto;
@@ -88,7 +89,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         assertEquals("test-id-token", result.getIdToken());
         assertEquals("test-access-token", result.getAccessToken());
         assertEquals("test-refresh-token", result.getRefreshToken());
-        assertEquals(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName()), result.getDisplayName());
+        assertEquals(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName(), user.getProfileImageKey()), result.getDisplayName());
         verify(cognitoClient).adminInitiateAuth(any(AdminInitiateAuthRequest.class));
         entityManager.clear();
         assertEquals(user.getId(), userRepository.findByEmail(email).orElseThrow().getId());
@@ -163,7 +164,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
 
         authService.signup(request);
         setupSecurityContext(userId);
-        var context = new org.app.vestiobackend.security.UserContext(userRepository);
+        UserContext context = new UserContext(userRepository);
         assertEquals(UUID.fromString(userId), context.getCurrentUser().getId());
         assertEquals("userId@example.com", context.getCurrentUserEmail());
     }

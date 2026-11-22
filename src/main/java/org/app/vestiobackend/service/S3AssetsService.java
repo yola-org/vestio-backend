@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.model.S3Exception;
@@ -25,6 +26,20 @@ public class S3AssetsService {
         String key = assetKey(awsProperties.s3().usersPrefix(), userId, assetId, fileName);
         putObject(key, content, contentType);
         return key;
+    }
+
+    public String putUserProfileImage(UUID userId, UUID assetId, byte[] content, String extension, String contentType) {
+        String key = userId + "/profile/" + assetId + "." + extension;
+        putObject(awsProperties.s3().usersPrefix() + "/" + key, content, contentType);
+        return key;
+    }
+
+    public void deleteUserProfileImage(UUID userId, String key) {
+        if (!key.startsWith(userId + "/profile/")) {
+            throw new IllegalArgumentException("Profile image must belong to the current user");
+        }
+        s3Client.deleteObject(DeleteObjectRequest.builder().bucket(awsProperties.s3().assetsBucket())
+                .key(awsProperties.s3().usersPrefix() + "/" + key).build());
     }
 
     public String putListingAsset(UUID listingId, UUID assetId, String fileName, byte[] content, String contentType) {

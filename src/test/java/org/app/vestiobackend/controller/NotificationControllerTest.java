@@ -1,5 +1,7 @@
 package org.app.vestiobackend.controller;
 
+import java.time.temporal.ChronoUnit;
+import org.hamcrest.Matchers;
 import com.vestio.common.entity.Notification;
 import org.app.vestiobackend.entity.User;
 import com.vestio.common.entity.enums.NotificationType;
@@ -32,7 +34,7 @@ class NotificationControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.items[0].payload.listingTitle").value("Newer"))
                 .andExpect(jsonPath("$.items[0].userId").value(testUser.getId().toString()))
                 .andExpect(jsonPath("$.items[0].type").value("listing-created"))
-                .andExpect(jsonPath("$.items[0].createdAt").value(org.hamcrest.Matchers.endsWith("Z")))
+                .andExpect(jsonPath("$.items[0].createdAt").value(Matchers.endsWith("Z")))
                 .andExpect(jsonPath("$.items[0].listingId").value(newer.getListingId().toString()))
                 .andExpect(jsonPath("$.totalElements").value(2))
                 .andExpect(jsonPath("$.totalPages").value(2))
@@ -48,11 +50,11 @@ class NotificationControllerTest extends AbstractControllerTest {
 
     @Test
     void markingOneReadIsIdempotentAndPersistsAcrossRequests() throws Exception {
-        var notification = create(testUser, "Mine", false);
+        Notification notification = create(testUser, "Mine", false);
         String response = mockMvc.perform(put("/api/notifications/{id}/read", notification.getId()).with(authenticatedUser(testUser)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.readAt").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
-        var readAt = objectMapper.readTree(response).path("readAt").asString();
+        String readAt = objectMapper.readTree(response).path("readAt").asString();
         assertThat(readAt).endsWith("Z");
         assertThat(Instant.parse(readAt)).isBeforeOrEqualTo(Instant.now());
         mockMvc.perform(put("/api/notifications/{id}/read", notification.getId()).with(authenticatedUser(testUser)))
@@ -64,9 +66,9 @@ class NotificationControllerTest extends AbstractControllerTest {
 
     @Test
     void readAllOnlyAffectsCurrentUserAndIsRetrySafe() throws Exception {
-        var read = create(testUser, "Already read", true);
-        var unread = create(testUser, "Unread", false);
-        var privateNotification = create(otherUser(), "Private", false);
+        Notification read = create(testUser, "Already read", true);
+        Notification unread = create(testUser, "Unread", false);
+        Notification privateNotification = create(otherUser(), "Private", false);
         for (int attempt = 0; attempt < 2; attempt++) {
             mockMvc.perform(put("/api/notifications/read-all").with(authenticatedUser(testUser))).andExpect(status().isNoContent());
         }
@@ -77,7 +79,7 @@ class NotificationControllerTest extends AbstractControllerTest {
 
     @Test
     void cannotReadAnotherUsersNotificationAndMissingIdsReturn404() throws Exception {
-        var notification = create(otherUser(), "Private", false);
+        Notification notification = create(otherUser(), "Private", false);
         for (UUID id : new UUID[]{notification.getId(), UUID.randomUUID()}) {
             mockMvc.perform(put("/api/notifications/{id}/read", id).with(authenticatedUser(testUser))).andExpect(status().isNotFound());
         }
@@ -106,6 +108,6 @@ class NotificationControllerTest extends AbstractControllerTest {
     private Notification create(User user, String title, boolean read) {
         return notifications.saveAndFlush(Notification.builder().userId(user.getId())
                 .type(NotificationType.LISTING_CREATED).payload(Map.of("listingTitle", title)).listingId(UUID.randomUUID())
-                .readAt(read ? Instant.now().minus(1, java.time.temporal.ChronoUnit.DAYS).truncatedTo(java.time.temporal.ChronoUnit.SECONDS) : null).build());
+                .readAt(read ? Instant.now().minus(1, ChronoUnit.DAYS).truncatedTo(ChronoUnit.SECONDS) : null).build());
     }
 }
