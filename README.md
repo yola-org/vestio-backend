@@ -162,14 +162,14 @@ use `listing-created` and `listing-published`; database enum values use uppercas
 names. Generic notifications do not need a listing.
 
 The shared `Event` envelope is `{id, type, payload, occurredAt}`. Its `EventType`
-is `notification` or `chat`; only notification payloads are implemented now.
+is `notification` or `chat`. Chat events use the concrete `ChatEvent.Payload` message contract.
 For notification events, `payload` is the saved notification and the event ID
 matches its ID. The canonical fixture is shared by common, backend and Lambda.
 
 ### Shared events library
 
 Notifications, enums, realtime event payloads and the AppSync publisher use
-`com.vestio:vestio-common:0.5.0` from GitHub Packages. Spring repositories and
+`com.vestio:vestio-common:0.7.0` from GitHub Packages. Spring repositories and
 notification services remain in this application. Shared JPA entities are included
 in the application's entity scan.
 
@@ -196,6 +196,16 @@ all statuses. `GET /api/listings/pending` returns their `AWAITING_ASSETS` and
 `PENDING` listings. Both accept `page` (zero based) and `size` (1–100, default 12)
 and sort newest first. They never return another user's listings.
 
+### Listing search filters
+
+`GET /api/listings/search` accepts multiple `colors`, `cityIds`, `sizeIds`, `conditions` (item states),
+and `contactTypes`, using repeated parameters or comma-separated values. For example:
+`/api/listings/search?colors=Blue,Red&conditions=GOOD,VERY_GOOD&contactTypes=DELIVERY&contactTypes=PARCEL&sizeIds=<uuid1>,<uuid2>`.
+A listing must match at least one value within each selected filter, and all
+selected filters must match. Color matching ignores case and surrounding whitespace.
+Empty lists impose no restriction. Results remain
+unique when multiple colors, cities, sizes or contact types match, including across pages.
+
 ### Offer notifications
 
 Creating an offer saves one `offer-sent` notification for the listing owner in
@@ -206,7 +216,7 @@ choose the recipient or sender name. Rejected and duplicate offers do not notify
 The service invokes the shared AppSync publisher directly after save/flush.
 A failed send rolls back both the offer and its notification, allowing a retry.
 
-Merge the common feature first and publish `vestio-common:0.5.0` before merging
+Merge the common feature first and publish `vestio-common:0.7.0` before merging
 this backend branch. Its local checks were run against the matching common source.
 
 ### Typed notification payloads
@@ -221,4 +231,48 @@ notification and frontend JSON shapes stay unchanged.
 
 All persisted audit timestamps and notification/event timestamps use `Instant`. APIs and AppSync events emit ISO 8601 UTC timestamps ending in `Z`; the frontend converts them to the browser timezone for display. Calendar dates must remain date-only. Hibernate JDBC and container JVM defaults use UTC.
 
-Release `vestio-common:0.5.0` before building these consumers. The initial Liquibase changelogs create all audit timestamp columns as `TIMESTAMP WITH TIME ZONE` from the start; no legacy timezone conversion or migration setting is required. Initialize the backend database before starting the image optimizer Lambda.
+Release `vestio-common:0.7.0` before building these consumers. The initial Liquibase changelogs create all audit timestamp columns as `TIMESTAMP WITH TIME ZONE` from the start; no legacy timezone conversion or migration setting is required. Initialize the backend database before starting the image optimizer Lambda.
+
+## Chats and messages
+
+`Chat` links an offer and its listing to the owner and buyer. Each chat requires a unique `offer_id`; a composite foreign key enforces that the offer belongs to the same listing and buyer. Each listing/buyer pair has one chat; the owner must match the listing's seller and must differ from the buyer. `Message` links a chat to its sender and nonblank text content. System messages use `system = true`, a `systemType` enum and JSON `params`; sender and content may be omitted. The initial type is `OFFER_ACCEPTED` (`offer-accepted` in JSON), requiring a positive numeric `amount`, a three-letter uppercase `currency`, and string `ownerName`, `buyerName` and `listingTitle`. Regular messages require a participant sender and text, with no system metadata. JPA validates these rules and that any supplied sender is one of the chat's two participants. Both entities use generated UUIDs and UTC `Instant` creation timestamps. Changelog 011 creates chats and their ownership constraints; changelog 012 creates messages and an index for chronological chat history. Deleting an offer, listing or participant deletes the related chats and messages. The offer/listing foreign keys use `ON DELETE CASCADE` and `ON UPDATE CASCADE`, so changing referenced IDs updates chat references. Listing collections and offer listing references cascade too, allowing listing ID changes without broken references. Cascades apply to foreign-key IDs, not snapshots in message JSON or edits to unrelated parent fields. The listing-ID cascade regression runs on PostgreSQL because H2 rejects the overlapping composite cascade paths.
+
+### Accept an offer
+
+`PUT /api/listings/{listingId}/offers/{offerId}/accept` requires authentication as the listing owner and has no request body. It returns the accepted `OfferDto` (HTTP 200). Acceptance creates or reuses the listing/buyer chat, saves an `offer-accepted` system message with no sender or rendered text, and sends an `offer-accepted` notification to the buyer through the existing notification publisher. The notification and system message share `offerId`, `chatId`, numeric `amount`, `currency`, `ownerName`, `buyerName` and `listingTitle`. All names and offer details come from persisted records. `app.currency` defaults to `MAD` and can be overridden with `APP_CURRENCY`.
+
+The listing is locked during acceptance so repeated or concurrent requests do not duplicate the chat, system message or notification. Requests from the buyer or another user receive HTTP 401; mismatched listing/offer IDs receive HTTP 404. Notification publication failures roll back the offer status and all new database records, allowing a retry. Notification publication uses the existing send-before-commit flow: an event can still be delivered before a later database commit failure. There is no outbox. Publish `vestio-common:0.7.0` before building this backend update.
+
+`PUT /api/listings/{listingId}/offers/{offerId}/refuse` lets the listing owner mark a pending offer `REFUSED`; it returns the updated `OfferDto` (HTTP 200). Repeating the same decision is safe. Accepted and refused offers cannot switch to the other decision, or be edited/cancelled by the buyer (`ERR_OFFER_NOT_PENDING`). Both decisions take the listing lock, so concurrent Accept/Refuse requests produce one final outcome. The frontend shows Accept and Refuse only for pending received offers and displays the resulting status after refreshing.
+
+### Chat API
+
+All `/api/chats` endpoints require authentication. Only the owner and buyer can access their chat; missing chats and nonparticipant requests return HTTP 404. Chat creation remains part of offer acceptance. Responses use DTOs with participant IDs and display names, without user emails or JPA entity graphs.
+
+| Method | Endpoint | Response |
+| --- | --- | --- |
+| GET | `/api/chats?page=0&size=20` | Paginated chats for the authenticated user |
+| GET | `/api/chats/{id}` | Chat, listing, offer and participant details |
+| GET | `/api/chats/{id}/messages?page=0&size=20` | Paginated regular and system messages |
+| POST | `/api/chats/{id}/messages` | New regular message (HTTP 201) |
+
+Pages contain `items`, `page`, `size`, `totalElements` and `totalPages`. Chat DTOs include a nullable `listingCoverAssetKey` (the first image in the listing’s ordered asset keys), retrieved alongside the summary without loading the image collection per chat. Image-less listings return null; replacing or reordering listing images updates the cover on the next read. They also include an embedded `lastMessage` (`MessageDto`, or null when empty), including system messages. Chats sort by the latest message timestamp descending, falling back to chat creation time when empty, then by chat ID descending. Message history sorts by message `createdAt` and then message ID descending. Equal message timestamps select the greatest message ID as the preview. The database query retrieves each chat and its preview together before pagination. Page numbers start at zero; size is 1–100. Send requests contain only `{ "content": "Hello" }`, with nonblank text up to 4,000 characters. Unknown fields, including sender and system metadata, are ignored. The service derives the sender from authentication, verifies membership and locks the chat while saving. User messages always have `system: false`, `systemType: null` and `params: null`. All timestamps are ISO 8601 UTC. Regular messages and offer-accepted system messages publish a typed `ChatEvent` to `/chat/{ownerId}` and `/chat/{buyerId}` after the database transaction commits. Event ID equals message ID; the payload has the same fields as `MessageDto`, including the wire value of `systemType`. Rolled-back messages never publish. Chat transport failures are logged without failing an already committed send, and each participant is attempted independently. There is no durable chat delivery queue; clients reload persisted history on reconnect or focus.
+
+### Profile images
+
+Authenticated `POST /api/profile/image` accepts one multipart `image` (JPEG, PNG,
+or WebP, up to the configured 10 MB image limit). The backend checks the file
+extension, MIME type and signature, then writes the bytes directly to the
+existing assets bucket under `users/{userId}/profile/{randomUuid}.{extension}`.
+It stores and returns `profileImageKey` as `{userId}/profile/{randomUuid}.{extension}`
+without the `users/` prefix. The frontend adds the asset prefix when building URLs. No SQS message or optimizer
+job is generated. The user ID comes from authentication; normal profile updates
+cannot assign image keys.
+
+A committed replacement removes the previous image. A rolled-back update removes
+the newly uploaded image and retains the previous one. Cleanup failures are
+logged without failing an already committed update. The storage bucket policy
+must allow public reads of these specific profile-image keys for avatar display.
+Apply Liquibase migrations `013-add-user-profile-image` and
+`014-relativize-user-profile-image-key` (which strips `users/` from existing keys) through the normal backend
+release; deploy the prepared storage policy before enabling public avatar URLs.

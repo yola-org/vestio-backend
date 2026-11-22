@@ -1,5 +1,7 @@
 package org.app.vestiobackend.security;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.service.AbstractServiceTest;
@@ -99,8 +101,8 @@ public class UserContextTest extends AbstractServiceTest {
         assertThrows(ResourceNotFoundException.class, userContext::getCurrentUser);
     }
 
-    @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"not-a-uuid", "test@example.com", "1-1-1-1-1"})
+    @ParameterizedTest
+    @ValueSource(strings = {"not-a-uuid", "test@example.com", "1-1-1-1-1"})
     void rejectsMalformedSubjectsInsteadOfFallingBackToEmail(String userId) {
         setupSecurityContext(userId);
         assertThrows(ResourceNotFoundException.class, userContext::getCurrentUser);

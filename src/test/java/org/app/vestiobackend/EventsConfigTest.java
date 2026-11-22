@@ -1,5 +1,7 @@
 package org.app.vestiobackend;
 
+import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.PropertySource;
 import io.awspring.cloud.parameterstore.ParameterStorePropertySource;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.io.FileSystemResource;
@@ -42,13 +44,13 @@ class EventsConfigTest {
     }
     @Test
     void localYamlImportsDevParameterPathAndResolvesPublisher() throws Exception {
-        var loader = new YamlPropertySourceLoader();
-        var base = loader.load("base", new FileSystemResource("src/main/resources/application.yaml")).getFirst();
-        var local = loader.load("local", new FileSystemResource("src/main/resources/application-local.yaml")).getFirst();
+        YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
+        PropertySource<?> base = loader.load("base", new FileSystemResource("src/main/resources/application.yaml")).getFirst();
+        PropertySource<?> local = loader.load("local", new FileSystemResource("src/main/resources/application-local.yaml")).getFirst();
         String location = (String) local.getProperty("spring.config.import[0]");
         assertThat(location).startsWith("aws-parameterstore:");
 
-        var ssm = mock(SsmClient.class);
+        SsmClient ssm = mock(SsmClient.class);
         when(ssm.getParametersByPath(any(GetParametersByPathRequest.class))).thenAnswer(invocation -> {
             GetParametersByPathRequest request = invocation.getArgument(0);
             assertThat(request.path()).isEqualTo("/DEV/");
@@ -57,11 +59,11 @@ class EventsConfigTest {
                             .value("https://example.appsync-api.ca-central-1.amazonaws.com/event").build(),
                     Parameter.builder().name("/DEV/APPSYNC_EVENTS_REGION").value("ca-central-1").build()).build();
         });
-        var parameters = new ParameterStorePropertySource(location.substring("aws-parameterstore:".length()), ssm);
+        ParameterStorePropertySource parameters = new ParameterStorePropertySource(location.substring("aws-parameterstore:".length()), ssm);
         parameters.init();
 
         runner.withInitializer(context -> {
-            var sources = context.getEnvironment().getPropertySources();
+            MutablePropertySources sources = context.getEnvironment().getPropertySources();
             sources.addLast(base);
             sources.addFirst(local);
             sources.addFirst(parameters);

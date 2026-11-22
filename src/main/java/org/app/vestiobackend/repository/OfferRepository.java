@@ -15,9 +15,9 @@ public interface OfferRepository extends JpaRepository<Offer, UUID> {
 
     Optional<Offer> findByIdAndListingId(UUID id, UUID listingId);
 
-    @EntityGraph(attributePaths = "listing")
+    @EntityGraph(attributePaths = {"listing", "user"})
     List<Offer> findByUser_IdOrderByCreatedAtDescIdDesc(UUID userId);
 
-    @EntityGraph(attributePaths = "listing")
+    @EntityGraph(attributePaths = {"listing", "user"})
     List<Offer> findByListing_User_IdOrderByCreatedAtDescIdDesc(UUID userId);
 }

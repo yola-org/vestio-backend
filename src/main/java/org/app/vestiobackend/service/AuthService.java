@@ -124,7 +124,7 @@ public class AuthService {
             AuthenticationResultType result = authResponse.authenticationResult();
 
             JwtResponseDto tokens = toJwtResponse(result);
-            tokens.setDisplayName(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName()));
+            tokens.setDisplayName(new JwtResponseDto.DisplayName(user.getFirstName(), user.getLastName(), user.getProfileImageKey()));
             return tokens;
         } catch (UserNotFoundException | NotAuthorizedException e) {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "User not found or invalid credentials.");

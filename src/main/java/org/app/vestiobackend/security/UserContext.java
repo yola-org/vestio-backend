@@ -1,5 +1,6 @@
 package org.app.vestiobackend.security;
 
+import org.springframework.security.core.Authentication;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.http.errors.ErrorCode;
@@ -40,7 +41,7 @@ public class UserContext {
         }
 
         // Final fallback to authentication name
-        var auth = SecurityContextHolder.getContext().getAuthentication();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getName() != null) {
             return auth.getName().toLowerCase(Locale.ROOT);
         }

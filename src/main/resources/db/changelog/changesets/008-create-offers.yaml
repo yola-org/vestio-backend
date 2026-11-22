@@ -80,6 +80,7 @@ databaseChangeLog:
             referencedColumnNames: id
             constraintName: fk_offers_listing
             onDelete: CASCADE
+            onUpdate: CASCADE
         - sql:
             sql: ALTER TABLE offers ADD CONSTRAINT ck_offers_price CHECK (price > 0 AND price <= 99999999999999999.99)
         - createIndex:

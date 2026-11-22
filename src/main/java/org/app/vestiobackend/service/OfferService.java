@@ -1,5 +1,6 @@
 package org.app.vestiobackend.service;
 
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.CreateOfferRequest;
 import org.app.vestiobackend.dto.OfferDto;
@@ -7,10 +8,14 @@ import org.app.vestiobackend.dto.OfferSummaryDto;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.Offer;
 import org.app.vestiobackend.entity.User;
+import org.app.vestiobackend.entity.Chat;
+import org.app.vestiobackend.entity.Message;
+import org.app.vestiobackend.entity.enums.SystemMessageType;
 import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.OfferStatus;
 import com.vestio.common.entity.enums.NotificationType;
 import com.vestio.common.event.payload.OfferSentPayload;
+import com.vestio.common.event.payload.OfferAcceptedPayload;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsException;
@@ -18,8 +23,12 @@ import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.repository.ListingRepository;
 import org.app.vestiobackend.repository.OfferRepository;
+import org.app.vestiobackend.repository.ChatRepository;
+import org.app.vestiobackend.repository.MessageRepository;
 import org.app.vestiobackend.security.UserContext;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
@@ -37,6 +46,13 @@ public class OfferService {
     private final OfferRepository offerRepository;
     private final UserContext userContext;
     private final NotificationService notificationService;
+    private final ChatRepository chatRepository;
+    private final MessageRepository messageRepository;
+    private final ObjectMapper objectMapper;
+    private final ChatMessageEvents chatMessageEvents;
+
+    @Value("${app.currency:MAD}")
+    private String currency;
 
     @Transactional(readOnly = true)
     public List<OfferSummaryDto> getSentOffers() {
@@ -71,10 +87,8 @@ public class OfferService {
         offer.setListing(listing);
         applyOfferDetails(offer, request);
         Offer saved = offerRepository.saveAndFlush(offer);
-        String senderName = Stream.of(buyer.getFirstName(), buyer.getLastName())
-                .filter(name -> name != null && !name.isBlank())
-                .map(String::strip).collect(Collectors.joining(" "));
-        var payload = new OfferSentPayload(saved.getId(), saved.getPrice(), buyer.getId(),
+        String senderName = fullName(buyer);
+        OfferSentPayload payload = new OfferSentPayload(saved.getId(), saved.getPrice(), buyer.getId(),
                 senderName, listing.getTitle());
         notificationService.notifyUser(listing.getUser().getId(), NotificationType.OFFER_SENT,
                 payload, listing.getId());
@@ -100,8 +114,61 @@ public class OfferService {
         if (!offer.getListing().getUser().getId().equals(currentUser.getId())) {
             throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Only the listing owner can accept this offer");
         }
+        // The listing lock serializes acceptance and buyer edits, including concurrent retries.
+        if (offer.getStatus() == OfferStatus.ACCEPTED) {
+            return toOfferDto(offer);
+        }
+        if (offer.getStatus() != OfferStatus.PENDING) {
+            throw new BadRequestException(ErrorCode.ERR_OFFER_NOT_PENDING, "Only pending offers can be accepted");
+        }
+
+        Listing listing = offer.getListing();
+        User buyer = offer.getUser();
+        Chat chat = chatRepository.findByOffer_Id(offerId)
+                .orElseGet(() -> {
+                    Chat created = new Chat();
+                    created.setOffer(offer);
+                    created.setListing(listing);
+                    created.setOwner(listing.getUser());
+                    created.setBuyer(buyer);
+                    return chatRepository.saveAndFlush(created);
+                });
+        OfferAcceptedPayload payload = new OfferAcceptedPayload(offer.getId(), chat.getId(), offer.getPrice(), currency,
+                fullName(listing.getUser()), fullName(buyer), listing.getTitle());
+        Message message = new Message();
+        message.setChat(chat);
+        message.setSystem(true);
+        message.setSystemType(SystemMessageType.OFFER_ACCEPTED);
+        message.setParams(payload.toMap(objectMapper));
+        Message savedMessage = messageRepository.saveAndFlush(message);
+        chatMessageEvents.publish(savedMessage);
         offer.setStatus(OfferStatus.ACCEPTED);
+        // Flush/publish last so a send failure rolls back the acceptance, chat and message together.
+        notificationService.notifyUser(buyer.getId(), NotificationType.OFFER_ACCEPTED, payload, listingId);
         return toOfferDto(offer);
+    }
+
+    @Transactional
+    public OfferDto refuseOffer(UUID listingId, UUID offerId) {
+        User currentUser = userContext.getCurrentUser();
+        Offer offer = findOfferForUpdate(listingId, offerId);
+        if (!offer.getListing().getUser().getId().equals(currentUser.getId())) {
+            throw new UnAuthorizedException(ErrorCode.ERR_UNAUTHORIZED, "Only the listing owner can refuse this offer");
+        }
+        if (offer.getStatus() == OfferStatus.REFUSED) {
+            return toOfferDto(offer);
+        }
+        if (offer.getStatus() != OfferStatus.PENDING) {
+            throw new BadRequestException(ErrorCode.ERR_OFFER_NOT_PENDING, "Only pending offers can be refused");
+        }
+        offer.setStatus(OfferStatus.REFUSED);
+        return toOfferDto(offer);
+    }
+
+    private String fullName(User user) {
+        return Stream.of(user.getFirstName(), user.getLastName())
+                .filter(name -> name != null && !name.isBlank())
+                .map(String::strip).collect(Collectors.joining(" "));
     }
 
     private Offer findOfferForUpdate(UUID listingId, UUID offerId) {
@@ -145,13 +212,15 @@ public class OfferService {
 
     private OfferSummaryDto toOfferSummary(Offer offer) {
         Listing listing = offer.getListing();
-        return new OfferSummaryDto(toOfferDto(offer), listing.getTitle(), listing.getStatus(), listing.getContactTypes());
+        return new OfferSummaryDto(toOfferDto(offer), listing.getTitle(), listing.getStatus(), listing.getContactTypes(),
+                listing.getAssetKeys() == null || listing.getAssetKeys().isEmpty() ? null : listing.getAssetKeys().getFirst(),
+                fullName(offer.getUser()), offer.getUser().getProfileImageKey());
     }
 
     void validateListingContactTypes(Listing listing, List<ContactType> contactTypes) {
         List<ContactType> proposedTypes = contactTypes == null ? List.of() : contactTypes;
         if (listing.getContactTypes() != null && !proposedTypes.containsAll(listing.getContactTypes())) {
-            var proposedNames = proposedTypes.stream().map(ContactType::name).collect(Collectors.toSet());
+            Set<String> proposedNames = proposedTypes.stream().map(ContactType::name).collect(Collectors.toSet());
             boolean hasAffectedOffers = offerRepository.findByListingId(listing.getId()).stream()
                     .flatMap(offer -> Arrays.stream(offer.getDeliveryTypes()))
                     .anyMatch(type -> !proposedNames.contains(type));

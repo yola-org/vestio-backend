@@ -1,5 +1,9 @@
 package org.app.vestiobackend.controller;
 
+import java.util.ArrayList;
+import org.hamcrest.Matchers;
+import java.util.concurrent.Future;
+import java.util.concurrent.ExecutorService;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
@@ -182,8 +186,8 @@ public class ListingControllerTest extends AbstractControllerTest {
     @Test
     void ownListingsIncludeEveryStatusAndPendingIncludesProcessingListings() throws Exception {
         User other = createSeller();
-        List<String> ownIds = new java.util.ArrayList<>();
-        List<String> pendingIds = new java.util.ArrayList<>();
+        List<String> ownIds = new ArrayList<>();
+        List<String> pendingIds = new ArrayList<>();
         for (ListingStatus state : ListingStatus.values()) {
             Listing own = createTestListing("My " + state, testUser, testCity, testCategory);
             own.setStatus(state);
@@ -198,10 +202,10 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/listings/mine").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.containsInAnyOrder(ownIds.toArray())));
+                .andExpect(jsonPath("$[*].id", Matchers.containsInAnyOrder(ownIds.toArray())));
         mockMvc.perform(get("/api/listings/pending").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.containsInAnyOrder(pendingIds.toArray())));
+                .andExpect(jsonPath("$[*].id", Matchers.containsInAnyOrder(pendingIds.toArray())));
         mockMvc.perform(get("/api/listings/mine").param("size", "1").param("page", "0").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
@@ -324,9 +328,9 @@ public class ListingControllerTest extends AbstractControllerTest {
             return null;
         };
 
-        try (var executor = Executors.newFixedThreadPool(2)) {
-            var firstRequest = executor.submit(favoriteRequest);
-            var secondRequest = executor.submit(favoriteRequest);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Void> firstRequest = executor.submit(favoriteRequest);
+            Future<Void> secondRequest = executor.submit(favoriteRequest);
             firstRequest.get(10, TimeUnit.SECONDS);
             secondRequest.get(10, TimeUnit.SECONDS);
         }

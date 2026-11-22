@@ -19,3 +19,11 @@ databaseChangeLog:
       file: db/changelog/changesets/009-create-notifications.yaml
   - include:
       file: db/changelog/changesets/010-create-listing-search.yaml
+  - include:
+      file: db/changelog/changesets/011-create-chats.yaml
+  - include:
+      file: db/changelog/changesets/012-create-messages.yaml
+  - include:
+      file: db/changelog/changesets/013-add-user-profile-image.yaml
+  - include:
+      file: db/changelog/changesets/014-relativize-user-profile-image-key.yaml

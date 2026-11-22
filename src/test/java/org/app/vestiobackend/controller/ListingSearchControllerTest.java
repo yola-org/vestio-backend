@@ -3,6 +3,7 @@ package org.app.vestiobackend.controller;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
+import org.app.vestiobackend.entity.Size;
 import com.vestio.common.entity.enums.Condition;
 import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.ListingStatus;
@@ -19,22 +20,116 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ListingSearchControllerTest extends AbstractControllerTest {
 
     @ParameterizedTest
+    @CsvSource({"colors, false", "colors, true", "cityIds, false", "cityIds, true", "sizeIds, false", "sizeIds, true", "conditions, false", "conditions, true",
+            "contactTypes, false", "contactTypes, true"})
+    void matchesAnySelectedValueWithoutDuplicateResults(String filter, boolean commaSeparated) throws Exception {
+        Size otherSize = sizeRepository.save(Size.builder().id(UUID.randomUUID())
+                .name("L").sizeGroup(testSizeGroup).build());
+        City otherCity = cityRepository.save(City.builder().id(UUID.randomUUID()).name("Rabat").build());
+        Listing first = matchingListing();
+        first.setColors(List.of("Blue", "BLUE", "Red"));
+        first.setCities(List.of(testCity, otherCity));
+        first.setSizes(List.of(testSize, otherSize));
+        listingRepository.save(first);
+        Listing second = matchingListing();
+        second.setColors(List.of("Red"));
+        second.setCities(List.of(otherCity));
+        second.setSizes(List.of(otherSize));
+        second.setCondition(Condition.GOOD);
+        second.setContactTypes(List.of(ContactType.PARCEL));
+        listingRepository.save(second);
+        Listing excluded = matchingListing();
+        excluded.setColors(List.of("Black"));
+        excluded.setCities(List.of());
+        excluded.setSizes(List.of());
+        excluded.setCondition(Condition.NEW_WITH_TAGS);
+        excluded.setContactTypes(List.of(ContactType.MEETUP));
+        listingRepository.save(excluded);
+
+        String[] values = switch (filter) {
+            case "colors" -> new String[]{"  bLuE  ", " RED "};
+            case "cityIds" -> new String[]{testCity.getId().toString(), otherCity.getId().toString()};
+            case "sizeIds" -> new String[]{testSize.getId().toString(), otherSize.getId().toString()};
+            case "conditions" -> new String[]{"VERY_GOOD", "GOOD"};
+            case "contactTypes" -> new String[]{"DELIVERY", "PARCEL"};
+            default -> throw new IllegalArgumentException(filter);
+        };
+        String[] parameters = commaSeparated ? new String[]{String.join(",", values)} : values;
+        MockHttpServletRequestBuilder request = get("/api/listings/search").param(filter, parameters);
+        mockMvc.perform(request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].id", containsInAnyOrder(first.getId().toString(), second.getId().toString())));
+        mockMvc.perform(get("/api/listings/search").param(filter, parameters).param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(second.getId().toString()));
+        mockMvc.perform(get("/api/listings/search").param(filter, parameters)
+                        .param("size", "1").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(first.getId().toString()));
+        mockMvc.perform(get("/api/listings/search").param(filter, parameters)
+                        .param("size", "1").param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void combinesMultipleSelections() throws Exception {
+        Listing match = listingRepository.save(matchingListing());
+        Listing wrongColor = matchingListing();
+        wrongColor.setColors(List.of("Black"));
+        listingRepository.save(wrongColor);
+        Listing wrongCity = matchingListing();
+        wrongCity.setCities(List.of());
+        listingRepository.save(wrongCity);
+        Listing wrongSize = matchingListing();
+        wrongSize.setSizes(List.of());
+        listingRepository.save(wrongSize);
+        Listing wrongCondition = matchingListing();
+        wrongCondition.setCondition(Condition.NEW_WITH_TAGS);
+        listingRepository.save(wrongCondition);
+        Listing wrongContact = matchingListing();
+        wrongContact.setContactTypes(List.of(ContactType.MEETUP));
+        listingRepository.save(wrongContact);
+
+        mockMvc.perform(get("/api/listings/search")
+                        .param("colors", "Blue", "Red")
+                        .param("cityIds", UUID.randomUUID().toString(), testCity.getId().toString())
+                        .param("sizeIds", UUID.randomUUID().toString(), testSize.getId().toString())
+                        .param("conditions", "GOOD", "VERY_GOOD")
+                        .param("contactTypes", "DELIVERY", "PARCEL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(match.getId().toString()));
+    }
+
+    @Test
+    void emptySelectionsDoNotRestrictResults() throws Exception {
+        listingRepository.save(matchingListing());
+        mockMvc.perform(get("/api/listings/search")
+                        .param("colors", "").param("cityIds", "").param("sizeIds", "").param("conditions", "").param("contactTypes", ""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @ParameterizedTest
     @CsvSource({
             "query, '  jAcKeT  '",
             "categoryId, fixture",
             "brandId, fixture",
-            "cityId, fixture",
-            "sizeId, fixture",
+            "cityIds, fixture",
+            "sizeIds, fixture",
             "gender, '  WOMEN  '",
-            "color, '  bLuE  '",
-            "condition, VERY_GOOD",
-            "contactType, DELIVERY",
+            "colors, '  bLuE  '",
+            "conditions, VERY_GOOD",
+            "contactTypes, DELIVERY",
             "minPrice, 50",
             "maxPrice, 50"
     })
@@ -105,12 +200,12 @@ class ListingSearchControllerTest extends AbstractControllerTest {
                 case "categoryId" -> distractor.setCategory(categoryRepository.save(Category.builder()
                         .id(UUID.randomUUID()).name("Accessories").build()));
                 case "brandId" -> distractor.setBrandId(null);
-                case "cityId" -> distractor.setCities(List.of());
-                case "sizeId" -> distractor.setSizes(List.of());
+                case "cityIds" -> distractor.setCities(List.of());
+                case "sizeIds" -> distractor.setSizes(List.of());
                 case "gender" -> distractor.setGender("Men");
-                case "color" -> distractor.setColors(List.of("Black"));
-                case "condition" -> distractor.setCondition(Condition.GOOD);
-                case "contactType" -> distractor.setContactTypes(List.of(ContactType.MEETUP));
+                case "colors" -> distractor.setColors(List.of("Black"));
+                case "conditions" -> distractor.setCondition(Condition.GOOD);
+                case "contactTypes" -> distractor.setContactTypes(List.of(ContactType.MEETUP));
                 case "minPrice" -> distractor.setPrice(new BigDecimal("49.99"));
                 case "maxPrice" -> distractor.setPrice(new BigDecimal("50.01"));
                 default -> throw new IllegalArgumentException(name);
@@ -158,7 +253,7 @@ class ListingSearchControllerTest extends AbstractControllerTest {
         partialMatch.setDescription("Lined with cotton");
         listingRepository.save(partialMatch);
 
-        mockMvc.perform(get("/api/listings/search").param("query", "WOOL jacket").param("color", "blue"))
+        mockMvc.perform(get("/api/listings/search").param("query", "WOOL jacket").param("colors", "blue"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(match.getId().toString()));
@@ -200,7 +295,7 @@ class ListingSearchControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$[2].id").value(descriptionMatch.getId().toString()));
 
         mockMvc.perform(get("/api/listings/search").param("query", "white tee")
-                        .param("cityId", otherCity.getId().toString()))
+                        .param("cityIds", otherCity.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].id").value(catalogMatch.getId().toString()))
@@ -233,7 +328,8 @@ class ListingSearchControllerTest extends AbstractControllerTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"categoryId, invalid", "condition, invalid", "contactType, invalid",
+    @CsvSource({"colors, 'Blue,   '", "categoryId, invalid", "conditions, invalid", "contactTypes, invalid",
+            "cityIds, invalid", "sizeIds, invalid", "conditions, 'GOOD,invalid'", "contactTypes, 'DELIVERY,invalid'",
             "minPrice, -1", "maxPrice, -1", "page, -1", "size, 0", "size, 101"})
     void rejectsInvalidParameters(String name, String value) throws Exception {
         mockMvc.perform(get("/api/listings/search").param(name, value))
@@ -270,12 +366,12 @@ class ListingSearchControllerTest extends AbstractControllerTest {
         filters.put("query", "jacket");
         filters.put("categoryId", testCategory.getId().toString());
         filters.put("brandId", listing.getBrandId().toString());
-        filters.put("cityId", testCity.getId().toString());
-        filters.put("sizeId", testSize.getId().toString());
+        filters.put("cityIds", testCity.getId().toString());
+        filters.put("sizeIds", testSize.getId().toString());
         filters.put("gender", "women");
-        filters.put("color", "blue");
-        filters.put("condition", "VERY_GOOD");
-        filters.put("contactType", "DELIVERY");
+        filters.put("colors", "blue");
+        filters.put("conditions", "VERY_GOOD");
+        filters.put("contactTypes", "DELIVERY");
         filters.put("minPrice", "50");
         filters.put("maxPrice", "50");
         return filters;

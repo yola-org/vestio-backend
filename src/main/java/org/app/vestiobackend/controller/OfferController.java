@@ -48,4 +48,9 @@ public class OfferController {
     public OfferDto acceptOffer(@PathVariable UUID id, @PathVariable UUID offerId) {
         return offerService.acceptOffer(id, offerId);
     }
+
+    @PutMapping("/{offerId}/refuse")
+    public OfferDto refuseOffer(@PathVariable UUID id, @PathVariable UUID offerId) {
+        return offerService.refuseOffer(id, offerId);
+    }
 }

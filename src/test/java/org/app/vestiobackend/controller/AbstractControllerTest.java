@@ -84,6 +84,8 @@ public abstract class AbstractControllerTest {
     public void setup() {
         when(publisher.dispatchNotificationEvent(any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+        when(publisher.dispatchEvent(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
         listingRepository.deleteAll();
         userPreferenceRepository.deleteAll();
         userRepository.deleteAll();

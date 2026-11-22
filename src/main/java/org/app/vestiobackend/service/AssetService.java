@@ -1,6 +1,7 @@
 package org.app.vestiobackend.service;
 
 import lombok.RequiredArgsConstructor;
+import software.amazon.awssdk.core.exception.SdkException;
 import org.app.vestiobackend.config.properties.ImageUploadProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,44 @@ public class AssetService {
     private final ImageUploadProperties imageUploadProperties;
     private final S3AssetsService s3AssetsService;
     private final SqsEventPublisher sqsEventPublisher;
+
+    public String uploadUserProfileImage(UUID userId, MultipartFile image) {
+        if (image.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A non-empty image is required");
+        }
+        validateImage(image);
+        try {
+            byte[] content = image.getBytes();
+            String extension;
+            String contentType;
+            if (content.length >= 8 && content[0] == (byte) 0x89 && content[1] == 'P' && content[2] == 'N'
+                    && content[3] == 'G' && content[4] == 13 && content[5] == 10 && content[6] == 26 && content[7] == 10) {
+                extension = "png";
+                contentType = "image/png";
+            } else if (content.length >= 3 && content[0] == (byte) 0xff && content[1] == (byte) 0xd8 && content[2] == (byte) 0xff) {
+                extension = "jpg";
+                contentType = "image/jpeg";
+            } else if (content.length >= 12 && content[0] == 'R' && content[1] == 'I' && content[2] == 'F' && content[3] == 'F'
+                    && content[8] == 'W' && content[9] == 'E' && content[10] == 'B' && content[11] == 'P') {
+                extension = "webp";
+                contentType = "image/webp";
+            } else {
+                throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Use a JPEG, PNG or WebP profile image");
+            }
+            if (!contentType.equals(image.getContentType())) {
+                throw new ResponseStatusException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Image content does not match its content type");
+            }
+            return s3AssetsService.putUserProfileImage(userId, UUID.randomUUID(), content, extension, contentType);
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("Could not read uploaded image", exception);
+        } catch (SdkException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Could not store profile image", exception);
+        }
+    }
+
+    public void deleteUserProfileImage(UUID userId, String key) {
+        s3AssetsService.deleteUserProfileImage(userId, key);
+    }
 
     public List<UploadedAsset> uploadListingImages(UUID listingId, List<MultipartFile> images) {
         List<MultipartFile> files = images.stream()

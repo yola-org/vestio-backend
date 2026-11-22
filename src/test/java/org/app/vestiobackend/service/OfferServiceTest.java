@@ -31,7 +31,7 @@ class OfferServiceTest extends AbstractServiceTest {
     void rejectsAnOfferFromTheListingOwnerWithoutSavingIt() {
         Listing listing = createTestListing("Listing", testUser, testCity, testCategory);
         setupSecurityContext(testUser);
-        var request = new CreateOfferRequest(BigDecimal.TEN, List.of(ContactType.MEETUP), "Offer");
+        CreateOfferRequest request = new CreateOfferRequest(BigDecimal.TEN, List.of(ContactType.MEETUP), "Offer");
 
         BadRequestException error = assertThrows(BadRequestException.class,
                 () -> offerService.createOffer(listing.getId(), request));
@@ -45,7 +45,7 @@ class OfferServiceTest extends AbstractServiceTest {
     void rejectsInvalidDeliveryOptionsOutsideTheController(List<ContactType> deliveryTypes) {
         Listing listing = createTestListing("Listing", testUser, testCity, testCategory);
         setupSecurityContext(createTestUser("buyer@example.com"));
-        var request = new CreateOfferRequest(BigDecimal.TEN, deliveryTypes, "Offer");
+        CreateOfferRequest request = new CreateOfferRequest(BigDecimal.TEN, deliveryTypes, "Offer");
 
         BadRequestException error = assertThrows(BadRequestException.class,
                 () -> offerService.createOffer(listing.getId(), request));
