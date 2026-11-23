@@ -67,4 +67,6 @@ public class ListingDto {
     private String sellerLastName;
     private String sellerProfileImageKey;
     private Instant createdAt;
+    private List<String> cityNames;
+    private List<String> sizeNames;
 }

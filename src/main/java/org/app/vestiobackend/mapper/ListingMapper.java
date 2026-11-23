@@ -23,9 +23,11 @@ public interface ListingMapper {
     default void mapCollections(Listing listing, @MappingTarget ListingDto dto) {
         if (listing.getCities() != null) {
             dto.setCityIds(listing.getCities().stream().map(City::getId).toList());
+            dto.setCityNames(listing.getCities().stream().map(City::getName).toList());
         }
         if (listing.getSizes() != null) {
             dto.setSizeIds(listing.getSizes().stream().map(Size::getId).toList());
+            dto.setSizeNames(listing.getSizes().stream().map(Size::getName).toList());
         }
     }
 

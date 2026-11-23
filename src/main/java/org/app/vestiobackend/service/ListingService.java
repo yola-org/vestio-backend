@@ -14,6 +14,7 @@ import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.repository.ListingRepository;
+import org.app.vestiobackend.repository.ListingSearchRepository;
 import org.app.vestiobackend.repository.ListingSearchSpecification;
 import org.app.vestiobackend.repository.SizeRepository;
 import org.app.vestiobackend.service.AssetService.UploadedAsset;
@@ -54,6 +55,7 @@ public class ListingService {
     private final OfferService offerService;
     private final EntityManagerFactory entityManagerFactory;
     private final NotificationService notificationService;
+    private final ListingSearchRepository listingSearchRepository;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -140,8 +142,8 @@ public class ListingService {
                 }
             }
         }
-        return listingRepository.findBy(ListingSearchSpecification.matching(filters, postgres, categoryIds),
-                        search -> search.slice(pageable)).stream()
+        return listingSearchRepository.search(
+                        ListingSearchSpecification.matching(filters, postgres, categoryIds), pageable).stream()
                 .map(listingMapper::toDto)
                 .toList();
     }

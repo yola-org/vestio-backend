@@ -7,7 +7,6 @@ import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.ListingStatus;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +18,15 @@ import java.util.UUID;
         @Index(name = "idx_listing_user", columnList = "user_id"),
         @Index(name = "idx_listing_status", columnList = "status")
 })
+@NamedEntityGraph(
+        name = "listing-with-associations",
+        attributeNodes = {
+                @NamedAttributeNode("user"),
+                @NamedAttributeNode("category"),
+                @NamedAttributeNode("cities"),
+                @NamedAttributeNode("sizes"),
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
