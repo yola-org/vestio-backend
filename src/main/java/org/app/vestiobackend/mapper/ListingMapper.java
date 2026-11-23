@@ -12,6 +12,9 @@ public interface ListingMapper {
     @Mapping(source = "category.id", target = "categoryId")
     @Mapping(source = "category.name", target = "categoryName")
     @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "user.firstName", target = "sellerFirstName")
+    @Mapping(source = "user.lastName", target = "sellerLastName")
+    @Mapping(source = "user.profileImageKey", target = "sellerProfileImageKey")
     @Mapping(target = "cityIds", ignore = true)
     @Mapping(target = "sizeIds", ignore = true)
     ListingDto toDto(Listing listing);

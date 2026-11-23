@@ -14,6 +14,7 @@ import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.ListingStatus;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -62,4 +63,8 @@ public class ListingDto {
     private String categoryName;
     private List<UUID> sizeIds;
     private UUID userId;
+    private String sellerFirstName;
+    private String sellerLastName;
+    private String sellerProfileImageKey;
+    private Instant createdAt;
 }
