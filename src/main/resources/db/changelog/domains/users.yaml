@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 001-create-users
+      id: create-users-domain
       author: youssef
       changes:
         - createTable:
@@ -44,6 +44,9 @@ databaseChangeLog:
                   name: phone_number
                   type: VARCHAR(50)
               - column:
+                  name: profile_image_key
+                  type: VARCHAR(512)
+              - column:
                   name: created_at
                   type: TIMESTAMP WITH TIME ZONE
                   defaultValueComputed: CURRENT_TIMESTAMP
@@ -55,3 +58,47 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+        - createTable:
+            tableName: user_preferences
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    deleteCascade: true
+                    foreignKeyName: fk_user_preference_user
+                    referencedTableName: users
+                    referencedColumnNames: id
+              - column:
+                  name: category_id
+                  type: UUID
+                  constraints:
+                    nullable: true
+                    foreignKeyName: fk_user_preference_category
+                    referencedTableName: categories
+                    referencedColumnNames: id
+              - column:
+                  name: gender
+                  type: VARCHAR(50)
+        - addUniqueConstraint:
+            tableName: user_preferences
+            columnNames: user_id, category_id
+            constraintName: uq_user_preferences_user_category
+        - createIndex:
+            tableName: user_preferences
+            indexName: idx_user_preferences_category
+            columns:
+              - column:
+                  name: category_id
+      rollback:
+        - dropTable:
+            tableName: user_preferences
+        - dropTable:
+            tableName: users

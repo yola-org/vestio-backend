@@ -123,8 +123,8 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/listings/mine").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].assetKeys.length()").value(1))
-                .andExpect(jsonPath("$[0].assetKeys[0]").value(replacementId.toString()));
+                .andExpect(jsonPath("$[0].assetKeys").doesNotExist())
+                .andExpect(jsonPath("$[0].coverAssetKey").value(replacementId.toString()));
         verify(eventPublisher).publishListingAssetsAdded(testUser.getId(), id,
                 List.of("listings/" + id + "/" + replacementId + ".png"));
     }
@@ -153,12 +153,44 @@ public class ListingControllerTest extends AbstractControllerTest {
 
         mockMvc.perform(get("/api/listings"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].title").value("Nice Jeans"));
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].title").value("Nice Jeans"))
+                .andExpect(jsonPath("$.content[0].description").doesNotExist())
+                .andExpect(jsonPath("$.content[0].contactTypes").doesNotExist())
+                .andExpect(jsonPath("$.content[0].assetKeys").doesNotExist())
+                .andExpect(jsonPath("$.content[0].categoryId").doesNotExist())
+                .andExpect(jsonPath("$.content[0].descriptionPreview").value("Default description"));
 
         mockMvc.perform(get("/api/listings/{id}", listing.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Nice Jeans"));
+    }
+
+    @Test
+    void publicListingPagesReturnMetadataAndDoNotOverlap() throws Exception {
+        for (int i = 0; i < 3; i++) {
+            createTestListing("Page listing " + i, testUser, testCity, testCategory);
+        }
+        MvcResult first = mockMvc.perform(get("/api/listings").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.number").value(0))
+                .andReturn();
+        String firstId = objectMapper.readTree(first.getResponse().getContentAsString())
+                .get("content").get(0).get("id").asText();
+        String secondId = objectMapper.readTree(first.getResponse().getContentAsString())
+                .get("content").get(1).get("id").asText();
+        mockMvc.perform(get("/api/listings").param("size", "2").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id", Matchers.not(Matchers.isOneOf(firstId, secondId))))
+                .andExpect(jsonPath("$.number").value(1));
+        mockMvc.perform(get("/api/listings").param("size", "101"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/listings").param("page", "-1"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -175,11 +207,12 @@ public class ListingControllerTest extends AbstractControllerTest {
                     .andExpect(status().isNotFound());
         }
         for (String endpoint : List.of("/api/listings", "/api/listings/search")) {
+            String root = endpoint.equals("/api/listings") ? "$.content" : "$";
             mockMvc.perform(get(endpoint))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.length()").value(1))
-                    .andExpect(jsonPath("$[0].id").value(ready.getId().toString()))
-                    .andExpect(jsonPath("$[0].status").value("AVAILABLE"));
+                    .andExpect(jsonPath(root + ".length()").value(1))
+                    .andExpect(jsonPath(root + "[0].id").value(ready.getId().toString()))
+                    .andExpect(jsonPath(root + "[0].status").value("AVAILABLE"));
         }
     }
 
@@ -302,7 +335,7 @@ public class ListingControllerTest extends AbstractControllerTest {
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(id.toString()))
                 .andExpect(jsonPath("$[0].title").value(listing.getTitle()))
-                .andExpect(jsonPath("$[0].cityIds[0]").value(testCity.getId().toString()));
+                .andExpect(jsonPath("$[0].cityNames[0]").value(testCity.getName()));
 
         mockMvc.perform(delete("/api/listings/{id}/favorite", id).with(authenticatedUser(testUser)))
                 .andExpect(status().isOk());

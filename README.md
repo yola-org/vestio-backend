@@ -273,6 +273,29 @@ A committed replacement removes the previous image. A rolled-back update removes
 the newly uploaded image and retains the previous one. Cleanup failures are
 logged without failing an already committed update. The storage bucket policy
 must allow public reads of these specific profile-image keys for avatar display.
-Apply Liquibase migrations `013-add-user-profile-image` and
-`014-relativize-user-profile-image-key` (which strips `users/` from existing keys) through the normal backend
-release; deploy the prepared storage policy before enabling public avatar URLs.
+The users domain changelog includes the profile-image column; new image keys are stored
+in relative form and require no legacy data rewrite. For release, deploy the prepared storage policy before enabling public avatar URLs.
+
+
+### Database changelog organization
+
+`src/main/resources/db/changelog/db.changelog-master.yaml` includes domain schemas in dependency order:
+catalog → users and preferences → listings, collections, favorites and search → offers → messaging → notifications.
+Domain files live under `db/changelog/domains/`. Listing search remains a separate PostgreSQL-only changeset
+inside the listings domain. Future changes to an executed schema should use new changesets.
+
+
+### Listing read responses
+
+`GET /api/listings`, `/api/listings/search`, `/api/listings/favorites`, `/api/listings/pending`,
+and `/api/listings/mine` return `ListingSummaryDto` items. The public browse endpoint wraps these
+in pagination metadata; the other endpoints retain their list response shape.
+Summaries include card fields, seller display fields, category name, a description preview capped
+at 160 characters, colors, city/size names, and one nullable `coverAssetKey` (asset position zero).
+They omit the full description, asset list, contact types, quantity, and category/city/size IDs.
+`GET /api/listings/{id}` and listing mutation responses continue returning the full `ListingDto`.
+
+Summary queries use scalar DTO projections and bounded scalar collection queries instead of loading
+listing entities. A nonempty public page uses five SQL queries including the total count; search uses
+four without a count, excluding optional category-tree expansion. Authenticated lists also resolve
+the current user. Favorites enrichment is chunked into groups of 100 IDs.

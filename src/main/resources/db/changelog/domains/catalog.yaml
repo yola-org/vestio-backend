@@ -1,6 +1,6 @@
 databaseChangeLog:
   - changeSet:
-      id: 002-create-catalog-tables
+      id: create-catalog-domain
       author: youssef
       changes:
         - createTable:
@@ -92,3 +92,28 @@ databaseChangeLog:
                     foreignKeyName: fk_category_size_group
                     referencedTableName: size_groups
                     referencedColumnNames: id
+        - addUniqueConstraint:
+            tableName: sizes
+            columnNames: size_group_id, name
+            constraintName: uq_sizes_group_name
+        - createIndex:
+            tableName: categories
+            indexName: idx_categories_parent
+            columns:
+              - column:
+                  name: parent_id
+        - createIndex:
+            tableName: categories
+            indexName: idx_categories_size_group
+            columns:
+              - column:
+                  name: size_group_id
+      rollback:
+        - dropTable:
+            tableName: categories
+        - dropTable:
+            tableName: cities
+        - dropTable:
+            tableName: sizes
+        - dropTable:
+            tableName: size_groups

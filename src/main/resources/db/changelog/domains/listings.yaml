@@ -1,0 +1,380 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-listings-domain
+      author: youssef
+      changes:
+        - createTable:
+            tableName: listings
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: CLOB
+              - column:
+                  name: price
+                  type: DECIMAL(19, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: gender
+                  type: VARCHAR(50)
+              - column:
+                  name: brand_id
+                  type: UUID
+              - column:
+                  name: condition
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: quantity
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_user
+                    referencedTableName: users
+                    referencedColumnNames: id
+              - column:
+                  name: category_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_category
+                    referencedTableName: categories
+                    referencedColumnNames: id
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - sql:
+            sql: ALTER TABLE listings ADD CONSTRAINT ck_listings_price CHECK (price > 0)
+        - sql:
+            sql: ALTER TABLE listings ADD CONSTRAINT ck_listings_quantity CHECK (quantity > 0)
+        - createIndex:
+            tableName: listings
+            indexName: idx_listing_category
+            columns:
+              - column:
+                  name: category_id
+        - createIndex:
+            tableName: listings
+            indexName: idx_listing_user_created_id
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: created_at
+                  descending: true
+              - column:
+                  name: id
+                  descending: true
+        - createIndex:
+            tableName: listings
+            indexName: idx_listing_status_created_id
+            columns:
+              - column:
+                  name: status
+              - column:
+                  name: created_at
+                  descending: true
+              - column:
+                  name: id
+                  descending: true
+        - createTable:
+            tableName: listing_colors
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: color
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: listing_contact_types
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: contact_type
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            tableName: listing_cities
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: city_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_cities_city
+                    referencedTableName: cities
+                    referencedColumnNames: id
+
+        - createTable:
+            tableName: listing_sizes
+            columns:
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: size_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_listing_sizes_size
+                    referencedTableName: sizes
+                    referencedColumnNames: id
+
+        - addPrimaryKey:
+            tableName: listing_colors
+            columnNames: listing_id, color
+            constraintName: pk_listing_colors
+        - createIndex:
+            tableName: listing_colors
+            indexName: idx_listing_colors_color_listing
+            columns:
+              - column:
+                  name: color
+              - column:
+                  name: listing_id
+        - addPrimaryKey:
+            tableName: listing_contact_types
+            columnNames: listing_id, contact_type
+            constraintName: pk_listing_contact_types
+        - createIndex:
+            tableName: listing_contact_types
+            indexName: idx_listing_contact_types_contact_type_listing
+            columns:
+              - column:
+                  name: contact_type
+              - column:
+                  name: listing_id
+        - addPrimaryKey:
+            tableName: listing_cities
+            columnNames: listing_id, city_id
+            constraintName: pk_listing_cities
+        - createIndex:
+            tableName: listing_cities
+            indexName: idx_listing_cities_city_id_listing
+            columns:
+              - column:
+                  name: city_id
+              - column:
+                  name: listing_id
+        - addPrimaryKey:
+            tableName: listing_sizes
+            columnNames: listing_id, size_id
+            constraintName: pk_listing_sizes
+        - createIndex:
+            tableName: listing_sizes
+            indexName: idx_listing_sizes_size_id_listing
+            columns:
+              - column:
+                  name: size_id
+              - column:
+                  name: listing_id
+        - addForeignKeyConstraint:
+            baseTableName: listing_colors
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_listing_colors_listing
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: listing_contact_types
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_listing_contact_types_listing
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: listing_cities
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_listing_cities_listing
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: listing_sizes
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_listing_sizes_listing
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - createTable:
+            tableName: listing_asset_keys
+            columns:
+              - column:
+                  name: listing_id
+                  type: uuid
+                  constraints:
+                    nullable: false
+              - column:
+                  name: position
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: asset_key
+                  type: UUID
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            tableName: listing_asset_keys
+            columnNames: listing_id, position
+            constraintName: pk_listing_asset_keys
+        - addForeignKeyConstraint:
+            baseTableName: listing_asset_keys
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_listing_asset_keys_listing
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - createTable:
+            tableName: favorites
+            columns:
+              - column:
+                  name: id
+                  type: uuid
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: listing_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: favorites
+            columnNames: user_id, listing_id
+            constraintName: uq_favorites_user_listing
+        - addForeignKeyConstraint:
+            baseTableName: favorites
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            constraintName: fk_favorites_user_id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: favorites
+            baseColumnNames: listing_id
+            referencedTableName: listings
+            referencedColumnNames: id
+            constraintName: fk_favorites_listing_id
+            onDelete: CASCADE
+            onUpdate: CASCADE
+        - createIndex:
+            tableName: favorites
+            indexName: idx_favorites_listing
+            columns:
+              - column:
+                  name: listing_id
+        - createIndex:
+            tableName: favorites
+            indexName: idx_favorites_user_created_id
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: created_at
+                  descending: true
+              - column:
+                  name: id
+      rollback:
+        - dropTable:
+            tableName: favorites
+        - dropTable:
+            tableName: listing_asset_keys
+        - dropTable:
+            tableName: listing_sizes
+        - dropTable:
+            tableName: listing_cities
+        - dropTable:
+            tableName: listing_contact_types
+        - dropTable:
+            tableName: listing_colors
+        - dropTable:
+            tableName: listings
+  - changeSet:
+      id: create-listing-search
+      author: youssef
+      dbms: postgresql
+      changes:
+        - sql:
+            sql: >-
+              CREATE FUNCTION normalize_listing_search_text(text) RETURNS text
+              LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE
+              AS 'SELECT regexp_replace(lower($1), ''\m(t[- ]?shirts?|tees?)\M'', ''tshirt'', ''g'')';
+        - sql:
+            sql: >-
+              ALTER TABLE listings ADD COLUMN search_vector tsvector GENERATED ALWAYS AS (
+                setweight(to_tsvector('pg_catalog.simple', normalize_listing_search_text(coalesce(title, ''))), 'A') ||
+                setweight(to_tsvector('pg_catalog.simple', normalize_listing_search_text(coalesce(description, ''))), 'D')
+              ) STORED;
+        - sql:
+            sql: CREATE INDEX idx_listings_search_vector ON listings USING GIN (search_vector);
+      rollback:
+        - sql:
+            sql: ALTER TABLE listings DROP COLUMN search_vector;
+        - sql:
+            sql: DROP FUNCTION normalize_listing_search_text(text);

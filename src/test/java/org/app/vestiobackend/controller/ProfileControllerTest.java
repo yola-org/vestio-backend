@@ -9,6 +9,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.app.vestiobackend.service.SqsEventPublisher;
 import org.mockito.ArgumentCaptor;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -88,7 +89,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
         AtomicReference<String> uploadedKey = new AtomicReference<>();
         new TransactionTemplate(transactions).executeWithoutResult(transaction -> {
             try {
-                var response = mockMvc.perform(multipart("/api/profile/image").file(profileImage())
+                MockHttpServletResponse response = mockMvc.perform(multipart("/api/profile/image").file(profileImage())
                                 .with(authenticatedUser(testUser)))
                         .andExpect(status().isOk()).andReturn().getResponse();
                 uploadedKey.set(objectMapper.readValue(response.getContentAsString(), UserProfileDto.class).getProfileImageKey());

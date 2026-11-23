@@ -21,6 +21,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CyclicBarrier;
@@ -75,7 +76,7 @@ class OfferControllerTest extends AbstractControllerTest {
         buyer.setProfileImageKey(profileKey);
         userRepository.saveAndFlush(buyer);
         UUID cover = UUID.randomUUID();
-        listing.setAssetKeys(java.util.List.of(cover, UUID.randomUUID()));
+        listing.setAssetKeys(List.of(cover, UUID.randomUUID()));
         listingRepository.saveAndFlush(listing);
         submitOffer(buyer, listing.getId(), VALID_OFFER).andExpect(status().isCreated());
         submitOffer(testUser, otherListing.getId(), VALID_OFFER).andExpect(status().isCreated());

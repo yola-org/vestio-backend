@@ -47,6 +47,19 @@ public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
     }
 
     @Test
+    void repeatedCategorySelectionsAreSavedOnceAndCanBeReplaced() {
+        UserPreferencesDto dto = new UserPreferencesDto();
+        dto.setCategoryIds(List.of(testCategory.getId(), testCategory.getId()));
+        profileService.updatePreferences(dto);
+        userPreferenceRepository.flush();
+        assertEquals(1, userPreferenceRepository.findByUser(testUser).size());
+
+        profileService.updatePreferences(dto);
+        userPreferenceRepository.flush();
+        assertEquals(1, userPreferenceRepository.findByUser(testUser).size());
+    }
+
+    @Test
     public void getUserPreferencesShouldReturnAllFields() {
         // Given
         UserPreferencesDto saveDto = new UserPreferencesDto();

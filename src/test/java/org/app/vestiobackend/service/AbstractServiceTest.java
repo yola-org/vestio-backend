@@ -34,6 +34,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import static org.mockito.Mockito.mock;
@@ -140,7 +141,7 @@ public abstract class AbstractServiceTest {
                 .contactTypes(List.of(ContactType.MEETUP))
                 .status(ListingStatus.AVAILABLE)
                 .user(user)
-                .cities(List.of(city))
+                .cities(new LinkedHashSet<>(List.of(city)))
                 .category(category)
                 .colors(List.of("Black"))
                 .build();

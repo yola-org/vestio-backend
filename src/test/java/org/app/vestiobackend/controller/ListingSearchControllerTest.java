@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,20 +36,20 @@ class ListingSearchControllerTest extends AbstractControllerTest {
         City otherCity = cityRepository.save(City.builder().id(UUID.randomUUID()).name("Rabat").build());
         Listing first = matchingListing();
         first.setColors(List.of("Blue", "BLUE", "Red"));
-        first.setCities(List.of(testCity, otherCity));
-        first.setSizes(List.of(testSize, otherSize));
+        first.setCities(new LinkedHashSet<>(List.of(testCity, otherCity)));
+        first.setSizes(new LinkedHashSet<>(List.of(testSize, otherSize)));
         listingRepository.save(first);
         Listing second = matchingListing();
         second.setColors(List.of("Red"));
-        second.setCities(List.of(otherCity));
-        second.setSizes(List.of(otherSize));
+        second.setCities(new LinkedHashSet<>(List.of(otherCity)));
+        second.setSizes(new LinkedHashSet<>(List.of(otherSize)));
         second.setCondition(Condition.GOOD);
         second.setContactTypes(List.of(ContactType.PARCEL));
         listingRepository.save(second);
         Listing excluded = matchingListing();
         excluded.setColors(List.of("Black"));
-        excluded.setCities(List.of());
-        excluded.setSizes(List.of());
+        excluded.setCities(new LinkedHashSet<>(List.of()));
+        excluded.setSizes(new LinkedHashSet<>(List.of()));
         excluded.setCondition(Condition.NEW_WITH_TAGS);
         excluded.setContactTypes(List.of(ContactType.MEETUP));
         listingRepository.save(excluded);
@@ -87,10 +88,10 @@ class ListingSearchControllerTest extends AbstractControllerTest {
         wrongColor.setColors(List.of("Black"));
         listingRepository.save(wrongColor);
         Listing wrongCity = matchingListing();
-        wrongCity.setCities(List.of());
+        wrongCity.setCities(new LinkedHashSet<>(List.of()));
         listingRepository.save(wrongCity);
         Listing wrongSize = matchingListing();
-        wrongSize.setSizes(List.of());
+        wrongSize.setSizes(new LinkedHashSet<>(List.of()));
         listingRepository.save(wrongSize);
         Listing wrongCondition = matchingListing();
         wrongCondition.setCondition(Condition.NEW_WITH_TAGS);
@@ -138,8 +139,8 @@ class ListingSearchControllerTest extends AbstractControllerTest {
         Listing distractor = createTestListing("Unrelated listing", testUser, testCity, testCategory);
         distractor.setCategory(categoryRepository.save(Category.builder()
                 .id(UUID.randomUUID()).name("Accessories").build()));
-        distractor.setCities(List.of(cityRepository.save(City.builder()
-                .id(UUID.randomUUID()).name("Rabat").build())));
+        distractor.setCities(new LinkedHashSet<>(List.of(cityRepository.save(City.builder()
+                .id(UUID.randomUUID()).name("Rabat").build()))));
         distractor.setPrice(new BigDecimal(name.equals("maxPrice") ? "75" : "25"));
         listingRepository.save(distractor);
 
@@ -200,8 +201,8 @@ class ListingSearchControllerTest extends AbstractControllerTest {
                 case "categoryId" -> distractor.setCategory(categoryRepository.save(Category.builder()
                         .id(UUID.randomUUID()).name("Accessories").build()));
                 case "brandId" -> distractor.setBrandId(null);
-                case "cityIds" -> distractor.setCities(List.of());
-                case "sizeIds" -> distractor.setSizes(List.of());
+                case "cityIds" -> distractor.setCities(new LinkedHashSet<>(List.of()));
+                case "sizeIds" -> distractor.setSizes(new LinkedHashSet<>(List.of()));
                 case "gender" -> distractor.setGender("Men");
                 case "colors" -> distractor.setColors(List.of("Black"));
                 case "conditions" -> distractor.setCondition(Condition.GOOD);
@@ -275,7 +276,7 @@ class ListingSearchControllerTest extends AbstractControllerTest {
         catalogMatch.setTitle("White T-shirt");
         catalogMatch.setCategory(tShirts);
         catalogMatch.setColors(List.of("White", "WHITE"));
-        catalogMatch.setCities(List.of(testCity, otherCity));
+        catalogMatch.setCities(new LinkedHashSet<>(List.of(testCity, otherCity)));
         listingRepository.save(catalogMatch);
 
         Listing titleMatch = matchingListing();
@@ -284,7 +285,7 @@ class ListingSearchControllerTest extends AbstractControllerTest {
 
         Listing descriptionMatch = matchingListing();
         descriptionMatch.setDescription("White tshirt");
-        descriptionMatch.setCities(List.of(otherCity));
+        descriptionMatch.setCities(new LinkedHashSet<>(List.of(otherCity)));
         listingRepository.save(descriptionMatch);
 
         mockMvc.perform(get("/api/listings/search").param("query", "white tshirt"))
@@ -352,8 +353,8 @@ class ListingSearchControllerTest extends AbstractControllerTest {
                 .user(testUser)
                 .category(testCategory)
                 .brandId(testSizeGroup.getId())
-                .cities(List.of(testCity))
-                .sizes(List.of(testSize))
+                .cities(new LinkedHashSet<>(List.of(testCity)))
+                .sizes(new LinkedHashSet<>(List.of(testSize)))
                 .gender("Women")
                 .colors(List.of("Blue", "BLUE"))
                 .condition(Condition.VERY_GOOD)

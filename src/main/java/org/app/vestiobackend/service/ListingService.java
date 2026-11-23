@@ -3,6 +3,7 @@ package org.app.vestiobackend.service;
 import jakarta.persistence.EntityManagerFactory;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ListingDto;
+import org.app.vestiobackend.dto.ListingSummaryDto;
 import org.app.vestiobackend.dto.ListingSearchFilters;
 import org.app.vestiobackend.entity.*;
 import com.vestio.common.entity.enums.ListingStatus;
@@ -14,7 +15,7 @@ import org.app.vestiobackend.repository.CategoryRepository;
 import org.app.vestiobackend.repository.CityRepository;
 import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.repository.ListingRepository;
-import org.app.vestiobackend.repository.ListingSearchRepository;
+import org.app.vestiobackend.repository.ListingSummaryRepository;
 import org.app.vestiobackend.repository.ListingSearchSpecification;
 import org.app.vestiobackend.repository.SizeRepository;
 import org.app.vestiobackend.service.AssetService.UploadedAsset;
@@ -22,6 +23,7 @@ import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -31,10 +33,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Service for managing product listings.
@@ -55,7 +57,7 @@ public class ListingService {
     private final OfferService offerService;
     private final EntityManagerFactory entityManagerFactory;
     private final NotificationService notificationService;
-    private final ListingSearchRepository listingSearchRepository;
+    private final ListingSummaryRepository listingSummaryRepository;
 
     /**
      * Creates a new listing for the currently authenticated user.
@@ -80,7 +82,7 @@ public class ListingService {
             if (cities.size() != dto.getCityIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more cities not found");
             }
-            listing.setCities(new ArrayList<>(cities));
+            listing.setCities(new LinkedHashSet<>(cities));
         }
 
         if (dto.getSizeIds() != null && !dto.getSizeIds().isEmpty()) {
@@ -88,7 +90,7 @@ public class ListingService {
             if (sizes.size() != dto.getSizeIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more sizes not found");
             }
-            listing.setSizes(new ArrayList<>(sizes));
+            listing.setSizes(new LinkedHashSet<>(sizes));
         }
 
         // Listing status is controlled by the asset workflow, never by the request body.
@@ -113,20 +115,15 @@ public class ListingService {
         return listingMapper.toDto(listing);
     }
 
-    /**
-     * Retrieves all listings available in the system.
-     *
-     * @return A list of {@link ListingDto}s.
-     */
+    /** Retrieves a database-paginated page of available listings, newest first. */
     @Transactional(readOnly = true)
-    public List<ListingDto> getAllListings() {
-        return listingRepository.findByStatus(ListingStatus.AVAILABLE).stream()
-                .map(listingMapper::toDto)
-                .collect(Collectors.toList());
+    public Page<ListingSummaryDto> getAllListings(int size, int page) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
+        return listingSummaryRepository.available(pageable);
     }
 
     @Transactional(readOnly = true)
-    public List<ListingDto> searchListings(ListingSearchFilters filters, int size, int page) {
+    public List<ListingSummaryDto> searchListings(ListingSearchFilters filters, int size, int page) {
         Pageable pageable = PageRequest.of(page, size);
         boolean postgres = entityManagerFactory.unwrap(SessionFactoryImplementor.class)
                 .getJdbcServices().getDialect() instanceof PostgreSQLDialect;
@@ -142,10 +139,8 @@ public class ListingService {
                 }
             }
         }
-        return listingSearchRepository.search(
-                        ListingSearchSpecification.matching(filters, postgres, categoryIds), pageable).stream()
-                .map(listingMapper::toDto)
-                .toList();
+        return listingSummaryRepository.search(
+                        ListingSearchSpecification.matching(filters, postgres, categoryIds), pageable);
     }
 
     /**
@@ -176,7 +171,7 @@ public class ListingService {
             if (cities.size() != dto.getCityIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more cities not found");
             }
-            listing.setCities(new ArrayList<>(cities));
+            listing.setCities(new LinkedHashSet<>(cities));
         }
 
         if (dto.getCategoryId() != null && !dto.getCategoryId().equals(listing.getCategory().getId())) {
@@ -190,7 +185,7 @@ public class ListingService {
             if (sizes.size() != dto.getSizeIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more sizes not found");
             }
-            listing.setSizes(new ArrayList<>(sizes));
+            listing.setSizes(new LinkedHashSet<>(sizes));
         }
 
         return listingMapper.toDto(listingRepository.save(listing));
@@ -290,15 +285,11 @@ public class ListingService {
     /**
      * Retrieves the current user's favorited listings in reverse chronological order.
      *
-     * @return The saved listings as {@link ListingDto}s.
+     * @return The saved listing summaries.
      */
     @Transactional(readOnly = true)
-    public List<ListingDto> getFavorites() {
-        User user = userContext.getCurrentUser();
-        return favoriteRepository.findByUserAndListingStatus(user, ListingStatus.AVAILABLE).stream()
-                .map(Favorite::getListing)
-                .map(listingMapper::toDto)
-                .toList();
+    public List<ListingSummaryDto> getFavorites() {
+        return listingSummaryRepository.favorites(userContext.getCurrentUser().getId());
     }
 
     private Listing getListingForFavoriteMutation(UUID id, User user) {
@@ -314,19 +305,15 @@ public class ListingService {
     }
 
     @Transactional(readOnly = true)
-    public List<ListingDto> getPendingListingsForUser(int size, int page) {
+    public List<ListingSummaryDto> getPendingListingsForUser(int size, int page) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return listingRepository.findByUserAndStatusIn(userContext.getCurrentUser(),
-                        List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING), pageable).stream()
-                .map(listingMapper::toDto)
-                .toList();
+        return listingSummaryRepository.forUser(userContext.getCurrentUser().getId(),
+                List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING), pageable);
     }
 
     @Transactional(readOnly = true)
-    public List<ListingDto> getListingsForCurrentUser(int size, int page) {
+    public List<ListingSummaryDto> getListingsForCurrentUser(int size, int page) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return listingRepository.findByUser(userContext.getCurrentUser(), pageable).stream()
-                .map(listingMapper::toDto)
-                .toList();
+        return listingSummaryRepository.forUser(userContext.getCurrentUser().getId(), List.of(), pageable);
     }
 }

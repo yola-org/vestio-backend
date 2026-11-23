@@ -15,6 +15,7 @@ spring:
         format_sql: true
         jdbc.time_zone: UTC
         default_batch_fetch_size: 20
+        query.fail_on_pagination_over_collection_fetch: true
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
   servlet:

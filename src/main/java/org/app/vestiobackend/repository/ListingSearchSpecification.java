@@ -8,6 +8,7 @@ import jakarta.persistence.criteria.Order;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import org.app.vestiobackend.dto.ListingSearchFilters;
+import org.app.vestiobackend.dto.ListingSummaryDto;
 import org.app.vestiobackend.entity.Listing;
 import com.vestio.common.entity.enums.ListingStatus;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
@@ -42,7 +43,7 @@ public final class ListingSearchSpecification {
                     predicates.add(builder.isTrue(hibernate.sql("""
                             search_vector @@ plainto_tsquery('pg_catalog.simple', normalize_listing_search_text(?))
                             """, Boolean.class, search)));
-                    if (Listing.class.equals(query.getResultType())) {
+                    if ((Listing.class.equals(query.getResultType()) || ListingSummaryDto.class.equals(query.getResultType()))) {
                         ordering.add(builder.desc(hibernate.sql("""
                                 ts_filter(search_vector, '{A}') @@
                                     plainto_tsquery('pg_catalog.simple', normalize_listing_search_text(?))
@@ -118,7 +119,7 @@ public final class ListingSearchSpecification {
                 predicates.add(builder.le(listing.get("price"), filters.maxPrice()));
             }
 
-            if (Listing.class.equals(query.getResultType())) {
+            if ((Listing.class.equals(query.getResultType()) || ListingSummaryDto.class.equals(query.getResultType()))) {
                 ordering.add(builder.desc(listing.get("createdAt")));
                 ordering.add(builder.desc(listing.get("id")));
                 query.orderBy(ordering);

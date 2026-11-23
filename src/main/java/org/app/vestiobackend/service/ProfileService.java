@@ -89,9 +89,10 @@ public class ProfileService {
 
         // Simple strategy: delete existing and add new
         userPreferenceRepository.deleteByUser(user);
+        userPreferenceRepository.flush();
 
         if (dto.getCategoryIds() != null && !dto.getCategoryIds().isEmpty()) {
-            dto.getCategoryIds().forEach(categoryId -> {
+            dto.getCategoryIds().stream().distinct().forEach(categoryId -> {
                 Category category = categoryRepository.findById(categoryId)
                         .orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Category not found: " + categoryId));
                 UserPreference preference = UserPreference.builder()

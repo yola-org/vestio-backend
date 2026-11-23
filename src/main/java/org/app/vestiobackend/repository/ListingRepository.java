@@ -2,30 +2,20 @@ package org.app.vestiobackend.repository;
 
 import jakarta.persistence.LockModeType;
 import org.app.vestiobackend.entity.Listing;
-import org.app.vestiobackend.entity.User;
 import com.vestio.common.entity.enums.ListingStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface ListingRepository extends JpaRepository<Listing, UUID>, JpaSpecificationExecutor<Listing> {
 
-    @EntityGraph(attributePaths = {"user", "category", "cities", "sizes"})
-    Page<Listing> findByUser(User user, Pageable pageable);
-
-    @EntityGraph(attributePaths = {"user", "category", "cities", "sizes"})
-    List<Listing> findByStatus(ListingStatus status);
-
-    @EntityGraph(attributePaths = {"user", "category", "cities", "sizes"})
+    @EntityGraph(type = EntityGraph.EntityGraphType.LOAD, attributePaths = {"user", "category"})
     Optional<Listing> findByIdAndStatus(UUID id, ListingStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -40,6 +30,4 @@ public interface ListingRepository extends JpaRepository<Listing, UUID>, JpaSpec
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<Listing> findForFavoriteMutationById(UUID id);
 
-    @EntityGraph(attributePaths = {"user", "category", "cities", "sizes"})
-    Page<Listing> findByUserAndStatusIn(User user, List<ListingStatus> statuses, Pageable pageable);
 }

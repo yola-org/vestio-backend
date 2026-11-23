@@ -32,6 +32,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 import static org.mockito.Mockito.when;
 
@@ -145,7 +146,7 @@ public abstract class AbstractControllerTest {
                 .contactTypes(List.of(ContactType.MEETUP))
                 .status(ListingStatus.AVAILABLE)
                 .user(user)
-                .cities(List.of(city))
+                .cities(new LinkedHashSet<>(List.of(city)))
                 .category(category)
                 .colors(List.of("Black"))
                 .build();

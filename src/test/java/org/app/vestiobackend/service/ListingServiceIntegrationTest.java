@@ -4,6 +4,7 @@ import com.vestio.common.entity.enums.NotificationType;
 import org.app.vestiobackend.repository.NotificationRepository;
 import com.vestio.common.entity.Notification;
 import org.app.vestiobackend.dto.ListingDto;
+import org.app.vestiobackend.dto.ListingSummaryDto;
 import org.app.vestiobackend.entity.Category;
 import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -198,20 +200,19 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         Listing otherPending = createPendingListing("Other pending listing", otherUser);
         createTestListing("My available listing", testUser, testCity, testCategory);
 
-        List<ListingDto> listings = listingService.getPendingListingsForUser(12, 0);
+        List<ListingSummaryDto> listings = listingService.getPendingListingsForUser(12, 0);
 
         assertEquals(1, listings.size());
-        ListingDto result = listings.getFirst();
+        ListingSummaryDto result = listings.getFirst();
         assertEquals(pending.getId(), result.getId());
         assertEquals(testUser.getId(), result.getUserId());
         assertEquals(ListingStatus.PENDING, result.getStatus());
-        assertEquals(testCategory.getId(), result.getCategoryId());
-        assertEquals(List.of(testCity.getId()), result.getCityIds());
-        assertEquals(List.of(testSize.getId()), result.getSizeIds());
+        assertEquals(List.of(testCity.getName()), result.getCityNames());
+        assertEquals(List.of(testSize.getName()), result.getSizeNames());
 
         setupSecurityContext(otherUser);
         assertEquals(List.of(otherPending.getId()), listingService.getPendingListingsForUser(12, 0)
-                .stream().map(ListingDto::getId).toList());
+                .stream().map(ListingSummaryDto::getId).toList());
     }
 
     @Test
@@ -222,16 +223,16 @@ public class ListingServiceIntegrationTest extends AbstractServiceTest {
         Listing newer = createPendingListing("Newer pending listing", testUser);
 
         assertEquals(List.of(newer.getId()), listingService.getPendingListingsForUser(1, 0)
-                .stream().map(ListingDto::getId).toList());
+                .stream().map(ListingSummaryDto::getId).toList());
         assertEquals(List.of(older.getId()), listingService.getPendingListingsForUser(1, 1)
-                .stream().map(ListingDto::getId).toList());
+                .stream().map(ListingSummaryDto::getId).toList());
         assertTrue(listingService.getPendingListingsForUser(1, 2).isEmpty());
     }
 
     private Listing createPendingListing(String title, User owner) {
         Listing listing = createTestListing(title, owner, testCity, testCategory);
         listing.setStatus(ListingStatus.PENDING);
-        listing.setSizes(List.of(testSize));
+        listing.setSizes(new LinkedHashSet<>(List.of(testSize)));
         return listingRepository.save(listing);
     }
 

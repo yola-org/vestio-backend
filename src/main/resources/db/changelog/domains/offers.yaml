@@ -16,7 +16,7 @@ databaseChangeLog:
       value: VARCHAR
       dbms: h2
   - changeSet:
-      id: 008-create-offers
+      id: create-offers-domain
       author: youssef-laarossi
       changes:
         - createTable:
@@ -85,10 +85,16 @@ databaseChangeLog:
             sql: ALTER TABLE offers ADD CONSTRAINT ck_offers_price CHECK (price > 0 AND price <= 99999999999999999.99)
         - createIndex:
             tableName: offers
-            indexName: idx_offers_user
+            indexName: idx_offers_user_created_id
             columns:
               - column:
                   name: user_id
+              - column:
+                  name: created_at
+                  descending: true
+              - column:
+                  name: id
+                  descending: true
         - createIndex:
             tableName: offers
             indexName: idx_offers_listing

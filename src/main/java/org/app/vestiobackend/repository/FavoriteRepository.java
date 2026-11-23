@@ -3,13 +3,11 @@ package org.app.vestiobackend.repository;
 import org.app.vestiobackend.entity.Favorite;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
-import com.vestio.common.entity.enums.ListingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -35,15 +33,4 @@ public interface FavoriteRepository extends JpaRepository<Favorite, UUID> {
     @Query("delete from Favorite favorite where favorite.user = :user and favorite.listing = :listing")
     void deleteByUserAndListing(User user, Listing listing);
 
-    /**
-     * @param user The user whose favorites should be returned.
-     * @return The user's favorites with their listings loaded, newest first.
-     */
-    @Query("""
-            select favorite from Favorite favorite
-            join fetch favorite.listing listing
-            where favorite.user = :user and listing.status = :status
-            order by favorite.createdAt desc, favorite.id
-            """)
-    List<Favorite> findByUserAndListingStatus(User user, ListingStatus status);
 }
