@@ -5,13 +5,9 @@ import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.entity.UserPreference;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -22,7 +18,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @Transactional
-public class ProfileServiceTestIntegrationTest extends AbstractServiceTest {
+public class ProfileServiceIT extends AbstractServiceIT {
 
     @Autowired
     private ProfileService profileService;

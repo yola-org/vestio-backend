@@ -1,4 +1,4 @@
-package org.app.vestiobackend.service;
+package org.app.vestiobackend.persistence;
 
 import liquibase.Contexts;
 import liquibase.Liquibase;
@@ -16,7 +16,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class SchemaMigrationTest {
+class SchemaMigrationIT {
     @Test
     void freshSchemaEnforcesCollectionKeysAndListingChecks() throws Exception {
         try (Connection connection = DriverManager.getConnection("jdbc:h2:mem:schema-constraints;DB_CLOSE_DELAY=-1");

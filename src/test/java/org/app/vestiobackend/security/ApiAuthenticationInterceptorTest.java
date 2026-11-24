@@ -19,7 +19,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-class PasswordResetSessionTest {
+class ApiAuthenticationInterceptorTest {
     @AfterEach void clearContext() { SecurityContextHolder.clearContext(); }
 
     @AuthRequired public void protectedEndpoint() { }

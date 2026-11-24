@@ -12,7 +12,6 @@ import org.app.vestiobackend.entity.User;
 import org.springframework.data.domain.Page;
 import org.hibernate.SessionFactory;
 import org.hibernate.Hibernate;
-import org.springframework.data.domain.PageRequest;
 import com.vestio.common.entity.enums.ListingStatus;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
@@ -30,7 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
 @Transactional
-class ListingQueryIntegrationTest extends AbstractServiceTest {
+class ListingServiceQueryIT extends AbstractServiceIT {
     @Autowired
     private ListingService listingService;
     @Autowired

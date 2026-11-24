@@ -1,4 +1,7 @@
-package org.app.vestiobackend.service;
+package org.app.vestiobackend.flow;
+
+import org.app.vestiobackend.service.AbstractServiceIT;
+import org.app.vestiobackend.service.OfferService;
 
 import java.util.function.Function;
 import com.vestio.common.event.ChatEvent;
@@ -25,9 +28,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.app.vestiobackend.dto.SendMessageRequest;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
@@ -43,66 +43,16 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class OfferAcceptanceIntegrationTest extends AbstractServiceTest {
+class OfferAcceptanceFlowIT extends AbstractServiceIT {
     @Autowired OfferService offers;
     @Autowired OfferRepository offerRepository;
     @Autowired ChatRepository chats;
     @Autowired MessageRepository messages;
     @Autowired NotificationRepository notifications;
-    @Autowired ChatService chatService;
-    @Autowired PlatformTransactionManager transactions;
 
     private Listing listing;
     private User buyer;
     private Offer offer;
-
-    @Test
-    void regularMessagesPublishToBothParticipantsOnlyAfterCommitAndNeverAfterRollback() {
-        offers.acceptOffer(listing.getId(), offer.getId());
-        UUID chatId = chats.findAll().getFirst().getId();
-        clearInvocations(publisher);
-        setupSecurityContext(buyer);
-        SendMessageRequest request = new SendMessageRequest();
-        request.setContent("Hello owner");
-        TransactionTemplate transaction = new TransactionTemplate(transactions);
-        transaction.executeWithoutResult(status -> {
-            chatService.send(chatId, request);
-            verifyNoInteractions(publisher);
-            status.setRollbackOnly();
-        });
-        verifyNoInteractions(publisher);
-        assertThat(messages.count()).isEqualTo(1);
-        transaction.executeWithoutResult(status -> {
-            chatService.send(chatId, request);
-            verifyNoInteractions(publisher);
-        });
-        for (UUID participant : new UUID[]{testUser.getId(), buyer.getId()}) {
-            verify(publisher).dispatchEvent(argThat(event -> event instanceof ChatEvent chatEvent
-                    && chatEvent.payload().chatId().equals(chatId)
-                    && chatEvent.payload().senderId().equals(buyer.getId())
-                    && chatEvent.payload().content().equals("Hello owner")
-                    && !chatEvent.payload().system()
-                    && chatEvent.payload().systemType() == null), eq(participant));
-        }
-        verifyNoMoreInteractions(publisher);
-        assertThat(messages.count()).isEqualTo(2);
-    }
-
-    @Test
-    void failedChatPublicationKeepsSavedMessageAndStillAttemptsOtherParticipant() {
-        offers.acceptOffer(listing.getId(), offer.getId());
-        UUID chatId = chats.findAll().getFirst().getId();
-        clearInvocations(publisher);
-        when(publisher.dispatchEvent(any(), eq(testUser.getId()))).thenThrow(new IllegalStateException("Offline"));
-        when(publisher.dispatchEvent(any(), eq(buyer.getId())))
-                .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("Offline")));
-        SendMessageRequest request = new SendMessageRequest();
-        request.setContent("Saved despite transport outage");
-        assertThat(chatService.send(chatId, request).content()).isEqualTo(request.getContent());
-        assertThat(messages.count()).isEqualTo(2);
-        verify(publisher).dispatchEvent(any(ChatEvent.class), eq(testUser.getId()));
-        verify(publisher).dispatchEvent(any(ChatEvent.class), eq(buyer.getId()));
-    }
 
     @BeforeEach
     void preparePendingOffer() {

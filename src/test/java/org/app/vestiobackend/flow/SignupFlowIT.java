@@ -1,6 +1,14 @@
-package org.app.vestiobackend.controller;
+package org.app.vestiobackend.flow;
 
-import org.app.vestiobackend.service.AbstractServiceTest;
+import org.app.vestiobackend.service.AbstractServiceIT;
+import org.app.vestiobackend.service.AuthService;
+import org.app.vestiobackend.dto.SignupRequestDto;
+import org.app.vestiobackend.security.UserContext;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpResponse;
+import java.util.UUID;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -21,8 +29,9 @@ import static org.mockito.Mockito.*;
 
 /** Uses real HTTP so container ERROR dispatches run through the security chain. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import(SignupErrorHttpIntegrationTest.FailingEndpoint.class)
-class SignupErrorHttpIntegrationTest extends AbstractServiceTest {
+@Import(SignupFlowIT.FailingEndpoint.class)
+class SignupFlowIT extends AbstractServiceIT {
+    @Autowired private AuthService authService;
     @LocalServerPort int port;
     private final HttpClient client = HttpClient.newHttpClient();
 
@@ -73,5 +82,23 @@ class SignupErrorHttpIntegrationTest extends AbstractServiceTest {
     static class FailingEndpoint {
         @GetMapping("/api/test/unexpected-error")
         public void fail() { throw new IllegalStateException("Test failure"); }
+    }
+
+    @Test
+    @Transactional
+    void signupUsesUserIdAsPrimaryKeyForAuthenticatedRequests() {
+        String userId = UUID.randomUUID().toString();
+        SignupRequestDto request = new SignupRequestDto();
+        request.setFirstName("Cognito");
+        request.setLastName("User");
+        request.setEmail("userId@example.com");
+        request.setPassword("Password123!");
+        when(cognitoClient.signUp(any(SignUpRequest.class))).thenReturn(SignUpResponse.builder().userSub(userId).build());
+
+        authService.signup(request);
+        setupSecurityContext(userId);
+        UserContext context = new UserContext(userRepository);
+        assertEquals(UUID.fromString(userId), context.getCurrentUser().getId());
+        assertEquals("userId@example.com", context.getCurrentUserEmail());
     }
 }
