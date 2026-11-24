@@ -35,28 +35,38 @@ public class ListingSummaryRepository {
     private EntityManager em;
 
     public Page<ListingSummaryDto> available(Pageable pageable) {
-        List<ListingSummaryDto> summaries = search((listing, query, builder) ->
+        return page((listing, query, builder) ->
                 builder.equal(listing.get("status"), ListingStatus.AVAILABLE), pageable);
-        long total = em.createQuery("select count(l) from Listing l where l.status = :status", Long.class)
-                .setParameter("status", ListingStatus.AVAILABLE).getSingleResult();
-        return new PageImpl<>(summaries, pageable, total);
     }
 
-    public List<ListingSummaryDto> forUser(UUID userId, List<ListingStatus> statuses, Pageable pageable) {
-        return search((listing, query, builder) -> {
+    public Page<ListingSummaryDto> forUser(UUID userId, List<ListingStatus> statuses, Pageable pageable) {
+        return page((listing, query, builder) -> {
             Predicate owner = builder.equal(listing.get("user").get("id"), userId);
             return statuses.isEmpty() ? owner : builder.and(owner, listing.get("status").in(statuses));
         }, pageable);
     }
 
-    public List<ListingSummaryDto> favorites(UUID userId) {
-        return search((listing, query, builder) -> {
+    public Page<ListingSummaryDto> favorites(UUID userId, List<UUID> listingIds, Pageable pageable) {
+        return page((listing, query, builder) -> {
             Root<Favorite> favorite = query.from(Favorite.class);
             query.orderBy(builder.desc(favorite.get("createdAt")), builder.asc(favorite.get("id")));
             return builder.and(builder.equal(favorite.get("listing").get("id"), listing.get("id")),
                     builder.equal(favorite.get("user").get("id"), userId),
-                    builder.equal(listing.get("status"), ListingStatus.AVAILABLE));
-        }, Pageable.unpaged());
+                    builder.equal(listing.get("status"), ListingStatus.AVAILABLE),
+                    listingIds == null ? builder.conjunction() : listing.get("id").in(listingIds));
+        }, pageable);
+    }
+
+    public Page<ListingSummaryDto> page(Specification<Listing> spec, Pageable pageable) {
+        List<ListingSummaryDto> content = search(spec, pageable);
+        CriteriaBuilder builder = em.getCriteriaBuilder();
+        CriteriaQuery<Long> count = builder.createQuery(Long.class);
+        Root<Listing> listing = count.from(Listing.class);
+        Predicate predicate = spec.toPredicate(listing, count, builder);
+        if (predicate != null) count.where(predicate);
+        count.select(builder.countDistinct(listing.get("id")));
+        count.orderBy(List.of());
+        return new PageImpl<>(content, pageable, em.createQuery(count).getSingleResult());
     }
 
     public List<ListingSummaryDto> search(Specification<Listing> spec, Pageable pageable) {
@@ -84,7 +94,7 @@ public class ListingSummaryRepository {
         }
         List<ListingSummaryDto> summaries = typedQuery.getResultList();
         if (summaries.isEmpty()) return summaries;
-        // Keep IN lists bounded even for the currently unpaged favorites endpoint.
+        // Keep collection enrichment queries bounded to one page.
         for (int start = 0; start < summaries.size(); start += 100) {
             enrich(summaries.subList(start, Math.min(start + 100, summaries.size())));
         }

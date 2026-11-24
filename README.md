@@ -324,17 +324,26 @@ inside the listings domain. Future changes to an executed schema should use new 
 ### Listing read responses
 
 `GET /api/listings`, `/api/listings/search`, `/api/listings/favorites`, `/api/listings/pending`,
-and `/api/listings/mine` return `ListingSummaryDto` items. The public browse endpoint wraps these
-in pagination metadata; the other endpoints retain their list response shape.
+and `/api/listings/mine` return our `PaginatedResult<ListingSummaryDto>` DTO using
+`{items, page, size, totalElements, totalPages}`. All accept zero-based `page`
+(default 0) and `size` (default 12, range 1–100). `/mine` also accepts an optional
+`status`, applied before pagination, so the profile can request only its owner's
+available listings. `/favorites` accepts an optional comma-separated `listingIds`
+filter (up to 100 UUIDs) for checking saved state only for visible cards.
+
+`GET /api/offers/sent` and `/api/offers/received` use the same page envelope and
+parameters, scoped to the authenticated user. Offers sort by `createdAt` descending,
+then ID descending. Empty and out-of-range pages still report the filtered total;
+the frontend returns to the last available page after removals.
 Summaries include card fields, seller display fields, category name, a description preview capped
 at 160 characters, colors, city/size names, and one nullable `coverAssetKey` (asset position zero).
 They omit the full description, asset list, contact types, quantity, and category/city/size IDs.
 `GET /api/listings/{id}` and listing mutation responses continue returning the full `ListingDto`.
 
 Summary queries use scalar DTO projections and bounded scalar collection queries instead of loading
-listing entities. A nonempty public page uses five SQL queries including the total count; search uses
-four without a count, excluding optional category-tree expansion. Authenticated lists also resolve
-the current user. Favorites enrichment is chunked into groups of 100 IDs.
+listing entities. A nonempty page uses five SQL queries including the filtered
+count, excluding optional category-tree expansion. Authenticated lists also resolve
+the current user. Collection enrichment is limited to the requested page.
 
 ### Email confirmation API and schema
 

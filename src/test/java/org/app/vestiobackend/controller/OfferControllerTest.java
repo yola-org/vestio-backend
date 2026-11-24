@@ -175,8 +175,8 @@ class OfferControllerTest extends AbstractOfferControllerTest {
 
         mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(buyer)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].offer.message").value("Updated offer"))
-                .andExpect(jsonPath("$[0].listingDeliveryTypes[0]").value("MEETUP"));
+                .andExpect(jsonPath("$.items[0].offer.message").value("Updated offer"))
+                .andExpect(jsonPath("$.items[0].listingDeliveryTypes[0]").value("MEETUP"));
         assertEquals(1, offerCount());
     }
 

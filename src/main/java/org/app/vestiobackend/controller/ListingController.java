@@ -1,5 +1,6 @@
 package org.app.vestiobackend.controller;
 
+import com.vestio.common.entity.enums.ListingStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -10,7 +11,7 @@ import org.app.vestiobackend.dto.ListingSummaryDto;
 import org.app.vestiobackend.dto.ListingSearchFilters;
 import org.app.vestiobackend.security.AuthRequired;
 import org.app.vestiobackend.service.ListingService;
-import org.springframework.data.domain.Page;
+import org.app.vestiobackend.dto.PaginatedResult;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,14 +73,14 @@ public class ListingController {
      * @return A response entity containing listing summaries and pagination metadata.
      */
     @GetMapping
-    public ResponseEntity<Page<ListingSummaryDto>> getAllListings(
+    public ResponseEntity<PaginatedResult<ListingSummaryDto>> getAllListings(
             @RequestParam(defaultValue = "12") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
         return ResponseEntity.ok(listingService.getAllListings(size, page));
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<ListingSummaryDto>> searchListings(
+    public ResponseEntity<PaginatedResult<ListingSummaryDto>> searchListings(
             @Valid @ModelAttribute ListingSearchFilters filters,
             @RequestParam(defaultValue = "12") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
@@ -145,13 +146,16 @@ public class ListingController {
      */
     @AuthRequired
     @GetMapping("/favorites")
-    public ResponseEntity<List<ListingSummaryDto>> getFavorites() {
-        return ResponseEntity.ok(listingService.getFavorites());
+    public ResponseEntity<PaginatedResult<ListingSummaryDto>> getFavorites(
+            @RequestParam(defaultValue = "12") @Min(1) @Max(100) int size,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(required = false) @Size(max = 100) List<UUID> listingIds) {
+        return ResponseEntity.ok(listingService.getFavorites(size, page, listingIds));
     }
 
     @AuthRequired
     @GetMapping("/pending")
-    public ResponseEntity<List<ListingSummaryDto>> getPendingListingsForUser(
+    public ResponseEntity<PaginatedResult<ListingSummaryDto>> getPendingListingsForUser(
             @RequestParam(defaultValue = "12") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
         return ResponseEntity.ok(listingService.getPendingListingsForUser(size, page));
@@ -159,10 +163,11 @@ public class ListingController {
 
     @AuthRequired
     @GetMapping("/mine")
-    public ResponseEntity<List<ListingSummaryDto>> getListingsForCurrentUser(
+    public ResponseEntity<PaginatedResult<ListingSummaryDto>> getListingsForCurrentUser(
+            @RequestParam(required = false) ListingStatus status,
             @RequestParam(defaultValue = "12") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "0") @Min(0) int page) {
-        return ResponseEntity.ok(listingService.getListingsForCurrentUser(size, page));
+        return ResponseEntity.ok(listingService.getListingsForCurrentUser(size, page, status));
     }
 
 }

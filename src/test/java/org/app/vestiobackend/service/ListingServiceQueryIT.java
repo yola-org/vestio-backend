@@ -9,7 +9,7 @@ import org.app.vestiobackend.repository.FavoriteRepository;
 import org.app.vestiobackend.dto.ListingSearchFilters;
 import org.app.vestiobackend.dto.ListingSummaryDto;
 import org.app.vestiobackend.entity.User;
-import org.springframework.data.domain.Page;
+import org.app.vestiobackend.dto.PaginatedResult;
 import org.hibernate.SessionFactory;
 import org.hibernate.Hibernate;
 import com.vestio.common.entity.enums.ListingStatus;
@@ -45,12 +45,12 @@ class ListingServiceQueryIT extends AbstractServiceIT {
     void publicPagesProjectCardFieldsWithoutHydratingEntities() {
         Statistics statistics = seedListingsAndResetStatistics();
 
-        Page<ListingSummaryDto> page = listingService.getAllListings(12, 1);
+        PaginatedResult<ListingSummaryDto> page = listingService.getAllListings(12, 1);
 
-        assertEquals(30, page.getTotalElements());
-        assertEquals(3, page.getTotalPages());
-        assertEquals(12, page.getContent().size());
-        page.forEach(listing -> {
+        assertEquals(30, page.totalElements());
+        assertEquals(3, page.totalPages());
+        assertEquals(12, page.items().size());
+        page.items().forEach(listing -> {
             assertEquals(coverKeys.get(listing.getId()), listing.getCoverAssetKey());
             assertEquals(2, listing.getColors().size());
             assertEquals(List.of(testSize.getName()), listing.getSizeNames());
@@ -64,31 +64,35 @@ class ListingServiceQueryIT extends AbstractServiceIT {
     }
 
     @Test
-    void ownerPagesAvoidCountQueriesAndLoadOnlyRequestedListings() {
+    void ownerPagesCountAndLoadOnlyRequestedListings() {
         Statistics statistics = seedListingsAndResetStatistics();
 
-        List<ListingSummaryDto> page = listingService.getListingsForCurrentUser(12, 1);
+        PaginatedResult<ListingSummaryDto> page = listingService.getListingsForCurrentUser(12, 1, null);
 
-        assertEquals(12, page.size());
+        assertEquals(12, page.items().size());
+        assertEquals(30, page.totalElements());
+        assertEquals(3, page.totalPages());
         assertEquals(0, statistics.getEntityStatistics(Listing.class.getName()).getLoadCount());
         assertEquals(0, statistics.getCollectionLoadCount());
-        // Current user lookup + card projection + three scalar collection queries.
-        assertTrue(statistics.getPrepareStatementCount() <= 5,
+        // Current user lookup + card projection + count + three scalar collection queries.
+        assertTrue(statistics.getPrepareStatementCount() <= 6,
                 "Unexpected query count: " + statistics.getPrepareStatementCount());
     }
 
     @Test
-    void searchPagesKeepSqlLimitsAndBatchCollectionsWithoutCounting() {
+    void searchPagesKeepSqlLimitsAndCountWithoutHydratingEntities() {
         Statistics statistics = seedListingsAndResetStatistics();
         ListingSearchFilters filters = new ListingSearchFilters("Listing", null, null, null, null,
                 null, null, null, null, null, null, null);
 
-        List<ListingSummaryDto> page = listingService.searchListings(filters, 12, 1);
+        PaginatedResult<ListingSummaryDto> page = listingService.searchListings(filters, 12, 1);
 
-        assertEquals(12, page.size());
+        assertEquals(12, page.items().size());
+        assertEquals(30, page.totalElements());
+        assertEquals(3, page.totalPages());
         assertEquals(0, statistics.getEntityStatistics(Listing.class.getName()).getLoadCount());
         assertEquals(0, statistics.getCollectionLoadCount());
-        assertTrue(statistics.getPrepareStatementCount() <= 4,
+        assertTrue(statistics.getPrepareStatementCount() <= 5,
                 "Unexpected query count: " + statistics.getPrepareStatementCount());
     }
 
@@ -107,12 +111,12 @@ class ListingServiceQueryIT extends AbstractServiceIT {
         entityManager.clear();
         statistics.clear();
 
-        List<ListingSummaryDto> favorites = listingService.getFavorites();
+        PaginatedResult<ListingSummaryDto> favorites = listingService.getFavorites(12, 0, null);
 
-        assertEquals(2, favorites.size());
+        assertEquals(2, favorites.items().size());
         assertEquals(0, statistics.getEntityStatistics(Listing.class.getName()).getLoadCount());
         assertEquals(0, statistics.getCollectionLoadCount());
-        assertTrue(statistics.getPrepareStatementCount() <= 5,
+        assertTrue(statistics.getPrepareStatementCount() <= 6,
                 "Unexpected query count: " + statistics.getPrepareStatementCount());
     }
 
@@ -122,9 +126,9 @@ class ListingServiceQueryIT extends AbstractServiceIT {
         ListingSearchFilters filters = new ListingSearchFilters("no-such-listing", null, null, null, null,
                 null, null, null, null, null, null, null);
 
-        assertTrue(listingService.searchListings(filters, 12, 0).isEmpty());
+        assertTrue(listingService.searchListings(filters, 12, 0).items().isEmpty());
 
-        assertEquals(1, statistics.getPrepareStatementCount());
+        assertEquals(2, statistics.getPrepareStatementCount());
         assertEquals(0, statistics.getEntityLoadCount());
         assertEquals(0, statistics.getCollectionLoadCount());
     }
