@@ -29,6 +29,12 @@ databaseChangeLog:
                     nullable: false
                     unique: true
               - column:
+                  name: email_verified
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
                   name: age
                   type: INT
               - column:
@@ -58,6 +64,53 @@ databaseChangeLog:
                   defaultValueComputed: CURRENT_TIMESTAMP
                   constraints:
                     nullable: false
+        - createTable:
+            tableName: email_verification_pins
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    deleteCascade: true
+                    foreignKeyName: fk_email_pin_user
+                    referencedTableName: users
+                    referencedColumnNames: id
+              - column:
+                  name: pin_hash
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: attempts
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - createIndex:
+            tableName: email_verification_pins
+            indexName: idx_email_pins_user_created
+            columns:
+              - column:
+                  name: user_id
+              - column:
+                  name: created_at
         - createTable:
             tableName: user_preferences
             columns:
@@ -98,6 +151,8 @@ databaseChangeLog:
               - column:
                   name: category_id
       rollback:
+        - dropTable:
+            tableName: email_verification_pins
         - dropTable:
             tableName: user_preferences
         - dropTable:

@@ -2,6 +2,43 @@
 
 Vestio Backend is a Spring Boot application providing the RESTful API for the Vestio platform. It handles user authentication, profile management, and item listings.
 
+## Account confirmation and welcome email (Resend)
+
+Successful signups publish a verification-PIN event. After the database transaction
+commits, `EmailService` sends a six-digit confirmation PIN using Resend. After
+confirmation, it sends a personalized French welcome email using the Resend
+Java SDK. Both emails use the shared HTML layout at
+`src/main/resources/templates/email/layout.html`, with body fragments in
+`welcome.html` and `verification.html` in the same directory. `EmailTemplate`
+renders HTML, subject, and plain text; dynamic values are escaped and inserted
+in one pass. Update the layout once to change the branding for every email. It
+uses Vestio’s cream, coral, lime, and black palette. A plain-text version is
+included. The backend confirms the Cognito account only after validating its own PIN.
+
+Configuration is identical across environments:
+
+| Setting | Purpose | Default |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Resend credential, supplied through secrets/environment | Empty (delivery skipped with a warning) |
+| `EMAIL_FROM` | Sender on your verified Resend domain | `Vestio <onboarding@resend.dev>` (development only) |
+| `EMAIL_SITE_URL` | Website destination in welcome emails; absolute HTTPS URL | `https://vestio.ma` |
+| `EMAIL_ENABLED` | Enable confirmation and welcome email delivery | `true` |
+
+The local profile already imports `DEV/RESEND_API_KEY` from AWS Secrets Manager.
+For deployed environments, inject the matching secret as `RESEND_API_KEY` and set
+`EMAIL_FROM` to an address on your verified sending domain. Creating the secret
+alone does not inject it into the running application. The Resend onboarding
+sender can only deliver to the account owner's address; production signups need
+a verified sender. See [Resend’s Java setup](https://resend.com/docs/send-with-java).
+Set `EMAIL_ENABLED=false` in environments where signup must not send real mail;
+tests disable it and exercise delivery with a mocked Resend client.
+
+Delivery uses per-PIN confirmation and per-account welcome idempotency keys and a five-second request timeout.
+Failures log the account ID and exception type without credentials or email content,
+and do not fail signup. Sending is synchronous after commit and may add up to the
+request timeout to signup latency. This is best-effort delivery: there is no durable
+queue or automatic replay after a process crash or provider failure.
+
 ## Technologies
 
 - **Java 17**
@@ -299,3 +336,25 @@ Summary queries use scalar DTO projections and bounded scalar collection queries
 listing entities. A nonempty public page uses five SQL queries including the total count; search uses
 four without a count, excluding optional category-tree expansion. Authenticated lists also resolve
 the current user. Favorites enrichment is chunked into groups of 100 IDs.
+
+### Email confirmation API and schema
+
+`POST /api/auth/signup` creates an unverified user and emails a PIN after commit.
+`POST /api/auth/confirm-email` accepts `{ "email": "...", "pin": "123456" }`.
+`POST /api/auth/resend-confirmation` accepts `{ "email": "..." }`.
+PINs expire after 10 minutes, allow five guesses, and can be resent after 60 seconds.
+Only the latest PIN is accepted. PINs are stored as keyed hashes and all rows for
+that user are deleted on activation. Confirmation also confirms the Cognito account
+and marks its email verified; login is blocked until verification completes.
+The profile's `emailVerified` field is read-only, and profile updates cannot change
+the login email. Delivery failures are logged without PINs; users can request a resend.
+
+The original `db/changelog/domains/users.yaml` was rewritten, as requested, with
+`users.email_verified` and `email_verification_pins`. This is a fresh-schema baseline,
+not an upgrade migration: databases that already applied `create-users-domain`
+need a separate migration (or an intentional reset) before this version runs.
+Cognito automatic verification and email recovery are disabled; all application
+email is sent by the backend through Resend.
+Deploy the matching Cognito configuration and scoped IAM permissions from aws-infra
+before enabling this flow. Configure `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_ENABLED`
+for actual mail delivery. Terraform changes are prepared only, not applied.

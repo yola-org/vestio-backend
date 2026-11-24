@@ -1,5 +1,6 @@
 package org.app.vestiobackend.repository;
 
+import java.util.ArrayList;
 import com.vestio.common.entity.enums.ListingStatus;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -114,7 +115,7 @@ public class ListingSummaryRepository {
     private Map<UUID, List<String>> values(String jpql, List<UUID> ids) {
         Map<UUID, List<String>> result = new HashMap<>();
         for (Tuple row : em.createQuery(jpql, Tuple.class).setParameter("ids", ids).getResultList()) {
-            result.computeIfAbsent(row.get("listingId", UUID.class), ignored -> new java.util.ArrayList<>())
+            result.computeIfAbsent(row.get("listingId", UUID.class), ignored -> new ArrayList<>())
                     .add(row.get("value", String.class));
         }
         return result;

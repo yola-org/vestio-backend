@@ -15,6 +15,7 @@ spring:
       - aws-secretsmanager:DEV/COGNITO/ISSUER_URI?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/REGION?prefix=COGNITO.
       - aws-secretsmanager:DEV/COGNITO/USER_POOL_ID?prefix=COGNITO.
+      - aws-secretsmanager:DEV/RESEND_API_KEY
   sql:
     init:
       mode: never

@@ -1,5 +1,6 @@
 package org.app.vestiobackend.service;
 
+import org.app.vestiobackend.entity.Size;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import org.app.vestiobackend.entity.Listing;
@@ -149,7 +150,7 @@ class ListingQueryIntegrationTest extends AbstractServiceTest {
         for (int i = 0; i < 30; i++) {
             Listing listing = createTestListing("Listing " + i, testUser, testCity, testCategory);
             listing.setSizes(new LinkedHashSet<>(List.of(
-                    entityManager.getReference(org.app.vestiobackend.entity.Size.class, testSize.getId()))));
+                    entityManager.getReference(Size.class, testSize.getId()))));
             listing.setColors(List.of("Black", "White"));
             UUID cover = UUID.randomUUID();
             listing.setAssetKeys(List.of(cover, UUID.randomUUID()));

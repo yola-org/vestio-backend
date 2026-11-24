@@ -1,5 +1,7 @@
 package org.app.vestiobackend.controller;
 
+import org.app.vestiobackend.entity.SizeGroup;
+import org.app.vestiobackend.entity.Size;
 import java.util.ArrayList;
 import org.hamcrest.Matchers;
 import java.util.concurrent.Future;
@@ -46,6 +48,25 @@ public class ListingControllerTest extends AbstractControllerTest {
 
     @MockitoBean
     private SqsEventPublisher eventPublisher;
+
+    @Test
+    void createAndUpdateRejectSizesFromAnotherCategoryGroup() throws Exception {
+        var shoeGroup = sizeGroupRepository.save(SizeGroup.builder()
+                .id(UUID.randomUUID()).name("Shoes").build());
+        var shoe = sizeRepository.save(Size.builder()
+                .id(UUID.randomUUID()).name("EU 40").sizeGroup(shoeGroup).build());
+        ListingDto dto = ListingDto.builder().title("Wrong size").price(new BigDecimal("20"))
+                .quantity(1).condition(Condition.GOOD).contactTypes(List.of(ContactType.MEETUP))
+                .cityIds(List.of(testCity.getId())).categoryId(testCategory.getId())
+                .sizeIds(List.of(shoe.getId())).build();
+        mockMvc.perform(post("/api/listings").with(authenticatedUser(testUser))
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+        Listing listing = createTestListing("Original", testUser, testCity, testCategory);
+        mockMvc.perform(put("/api/listings/" + listing.getId()).with(authenticatedUser(testUser))
+                        .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isBadRequest());
+    }
 
     @Test
     public void createListingShouldReturnOk() throws Exception {

@@ -36,6 +36,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final CognitoIdentityProviderClient cognitoClient;
     private final UserMapper userMapper;
+    private final EmailVerificationService verification;
 
     @Value("${cognito.client-id}")
     private String clientId;
@@ -92,6 +93,7 @@ public class AuthService {
         user.setId(UUID.fromString(response.userSub()));
 
         userRepository.save(user);
+        verification.issue(user);
     }
 
     /**
@@ -105,6 +107,8 @@ public class AuthService {
     public JwtResponseDto login(LoginRequestDto request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new UnAuthorizedException("User not found or invalid credentials."));
+
+        if (!user.isEmailVerified()) throw new UnAuthorizedException(ErrorCode.ERR_EMAIL_NOT_VERIFIED, "Please confirm your email before signing in.");
 
         String secretHash = calculateSecretHash(clientId, clientSecret, request.getEmail());
 
