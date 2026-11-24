@@ -33,6 +33,8 @@ public class User {
     @Column(nullable = false)
     private boolean emailVerified;
 
+    private Instant passwordChangedAt;
+
     private Integer age;
     private String gender;
     private String city;

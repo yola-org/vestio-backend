@@ -350,7 +350,7 @@ The profile's `emailVerified` field is read-only, and profile updates cannot cha
 the login email. Delivery failures are logged without PINs; users can request a resend.
 
 The original `db/changelog/domains/users.yaml` was rewritten, as requested, with
-`users.email_verified` and `email_verification_pins`. This is a fresh-schema baseline,
+`users.email_verified` and `pins`. This is a fresh-schema baseline,
 not an upgrade migration: databases that already applied `create-users-domain`
 need a separate migration (or an intentional reset) before this version runs.
 Cognito automatic verification and email recovery are disabled; all application
@@ -358,3 +358,36 @@ email is sent by the backend through Resend.
 Deploy the matching Cognito configuration and scoped IAM permissions from aws-infra
 before enabling this flow. Configure `RESEND_API_KEY`, `EMAIL_FROM`, and `EMAIL_ENABLED`
 for actual mail delivery. Terraform changes are prepared only, not applied.
+
+### Password reset and shared PIN purposes
+
+`POST /api/auth/forgot-password` accepts `{ "email": "..." }`. Unknown addresses
+return HTTP 400 with `ERR_EMAIL_NOT_FOUND` and "Your email wasn't found." The web
+request/reset forms translate this code and display it inline. Existing unverified
+or throttled accounts retain the generic success response. A verified account
+receives a reset PIN through Resend after the request commits.
+`POST /api/auth/reset-password` accepts `{ "email": "...", "pin": "123456",
+"newPassword": "..." }`. Passwords require 12–256 characters, uppercase,
+lowercase, a digit, and a symbol, with no whitespace; Cognito also enforces its
+configured policy and any password history.
+
+The original users changelog now defines one `pins` table. `purpose` is stored as
+`ACCOUNT_ACTIVATION` or `PASSWORD_RESET`, and the lookup index covers user,
+purpose, and creation time. Both flows use keyed PIN hashes, 10-minute expiry,
+and a five-attempt limit. Only the latest PIN for the requested purpose works.
+A successful operation deletes that user's PINs for its own purpose. Password
+reset requests for existing accounts are silently throttled for one minute. PIN and password validation values are redacted from errors.
+
+Reset and password-changed emails use the common HTML layout with plain-text
+fallbacks. The backend calls Cognito `AdminSetUserPassword` with a permanent
+password and then `AdminUserGlobalSignOut`; it never invokes Cognito's email
+recovery API. `users.password_changed_at` also fences old JWT sessions on protected
+HTTP endpoints, using `auth_time` (or `iat` when absent) so refreshed old sessions
+cannot regain access. New sessions created in the same timestamp second may need
+to sign in again in the next second because Cognito timestamps have second precision.
+External real-time services must independently enforce token expiry/revocation.
+
+As requested, this updates the existing schema baseline rather than adding an
+upgrade migration. An existing database needs an intentional migration or reset
+for the table rename, purpose column, and password-change timestamp. Apply the
+matching scoped IAM permissions in aws-infra before deploying the feature.
