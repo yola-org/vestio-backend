@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class OfferServiceTest extends AbstractServiceTest {
+class OfferServiceIT extends AbstractServiceIT {
 
     @Autowired
     private OfferService offerService;

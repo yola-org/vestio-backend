@@ -1,4 +1,6 @@
-package org.app.vestiobackend.service;
+package org.app.vestiobackend.persistence;
+
+import org.app.vestiobackend.service.AbstractServiceIT;
 
 import org.hibernate.Session;
 import tools.jackson.databind.json.JsonMapper;
@@ -26,7 +28,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
-class ChatPersistenceTest extends AbstractServiceTest {
+class ChatPersistenceIT extends AbstractServiceIT {
     @Autowired EntityManager entityManager;
     @Autowired PlatformTransactionManager transactionManager;
 

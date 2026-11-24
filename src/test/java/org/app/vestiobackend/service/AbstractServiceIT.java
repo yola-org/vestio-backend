@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
 @Slf4j
 @SpringBootTest
 @ActiveProfiles("test")
-public abstract class AbstractServiceTest {
+public abstract class AbstractServiceIT {
 
     @Autowired
     protected UserRepository userRepository;

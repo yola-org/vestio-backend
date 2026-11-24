@@ -31,8 +31,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@SpringJUnitConfig(EmailServiceTest.Config.class)
-class EmailServiceTest {
+@SpringJUnitConfig(EmailServiceIT.Config.class)
+class EmailServiceIT {
     @Autowired ApplicationEventPublisher events;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired Resend resend;

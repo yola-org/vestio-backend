@@ -6,7 +6,6 @@ import com.vestio.common.entity.Notification;
 import org.app.vestiobackend.dto.ListingDto;
 import org.app.vestiobackend.dto.ListingSummaryDto;
 import org.app.vestiobackend.entity.Category;
-import org.app.vestiobackend.entity.City;
 import org.app.vestiobackend.entity.Listing;
 import org.app.vestiobackend.entity.User;
 import com.vestio.common.entity.enums.Condition;
@@ -14,15 +13,10 @@ import com.vestio.common.entity.enums.ContactType;
 import com.vestio.common.entity.enums.ListingStatus;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,7 +30,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @Transactional
-public class ListingServiceIntegrationTest extends AbstractServiceTest {
+public class ListingServiceIT extends AbstractServiceIT {
 
     @Autowired
     private ListingService listingService;

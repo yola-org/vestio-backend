@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class NotificationDeliveryIntegrationTest extends AbstractServiceTest {
+class NotificationServiceIT extends AbstractServiceIT {
     @Autowired private NotificationService notificationService;
     @Autowired private NotificationRepository notificationRepository;
 

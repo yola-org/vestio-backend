@@ -1,10 +1,11 @@
 package org.app.vestiobackend.security;
 
+import org.app.vestiobackend.service.AbstractServiceIT;
+
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.http.errors.exception.ResourceNotFoundException;
-import org.app.vestiobackend.service.AbstractServiceTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
@@ -18,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class UserContextTest extends AbstractServiceTest {
+public class UserContextIT extends AbstractServiceIT {
 
     @Autowired
     private UserContext userContext;

@@ -108,7 +108,7 @@ Run the test suite using Gradle:
 ./gradlew test
 ```
 
-Tests use an in-memory H2 database and a dedicated `test` profile.
+All tests live under `src/test/java` and run with `test`, including controller tests, service integration tests, and named business flows. They use the shared H2 test configuration. See [TESTING_GUIDE.md](./TESTING_GUIDE.md) for naming and examples.
 
 Run `./gradlew check` to run the tests, SpotBugs analysis, and Spotless Java
 formatting checks. Use `./gradlew spotlessApply` to trim trailing whitespace
@@ -120,8 +120,7 @@ the build. JaCoCo runs with the test suite and has no minimum coverage threshold
 - SpotBugs [application](build/reports/spotbugs/main.html) and
   [test](build/reports/spotbugs/test.html) reports
 
-GitHub Actions and GitLab CI both run `check`. GitLab CI uploads the reports
-with the test job.
+GitHub Actions runs all tests and the verification tasks.
 
 ## GitHub Actions
 

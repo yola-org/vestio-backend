@@ -1,4 +1,7 @@
-package org.app.vestiobackend.service;
+package org.app.vestiobackend.flow;
+
+import org.app.vestiobackend.service.AbstractServiceIT;
+import org.app.vestiobackend.service.OfferService;
 
 import java.util.concurrent.CompletionException;
 import com.vestio.common.entity.Notification;
@@ -20,7 +23,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class OfferNotificationIntegrationTest extends AbstractServiceTest {
+class OfferCreationFlowIT extends AbstractServiceIT {
     @Autowired OfferService offers;
     @Autowired OfferRepository offerRepository;
     @Autowired NotificationRepository notifications;
