@@ -1,6 +1,7 @@
 package org.app.vestiobackend.service;
 
-import org.app.vestiobackend.repository.EmailVerificationPinRepository;
+import org.app.vestiobackend.repository.PinRepository;
+import org.app.vestiobackend.entity.PinPurpose;
 import java.time.Instant;
 import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -9,7 +10,7 @@ import org.app.vestiobackend.dto.JwtResponseDto;
 import org.app.vestiobackend.dto.LoginRequestDto;
 import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.entity.User;
-import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsException;
+import org.app.vestiobackend.entity.Pin;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +42,8 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
     private EntityManager entityManager;
 
     @Autowired private EmailVerificationService verification;
-    @Autowired private EmailVerificationPinRepository pins;
+    @Autowired private PinRepository pins;
+    @Autowired private EmailPinCodec codes;
 
     private User unverifiedUser() {
         User user = createTestUser("verify@example.com");
@@ -51,11 +53,27 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
     }
 
     @Test
+    void passwordResetPinCannotActivateAccount() {
+        User user = unverifiedUser();
+        Pin pin = new Pin();
+        pin.setId(UUID.randomUUID());
+        pin.setUserId(user.getId());
+        pin.setPurpose(PinPurpose.PASSWORD_RESET);
+        pin.setPinHash(codes.hash(pin.getId(), "123456"));
+        pin.setCreatedAt(Instant.now());
+        pin.setExpiresAt(Instant.now().plusSeconds(600));
+        pins.saveAndFlush(pin);
+        assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), "123456"));
+        assertFalse(userRepository.findById(user.getId()).orElseThrow().isEmailVerified());
+        verifyNoInteractions(cognitoClient);
+    }
+
+    @Test
     void confirmsLatestPinAndDeletesAllPins() {
         User user = unverifiedUser();
         verification.issue(user);
         var old = applicationEvents.stream(VerificationPinCreated.class).findFirst().orElseThrow();
-        var stored = pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow();
+        var stored = pins.findFirstByUserIdAndPurposeOrderByCreatedAtDesc(user.getId(), PinPurpose.ACCOUNT_ACTIVATION).orElseThrow();
         assertNotEquals(old.pin(), stored.getPinHash());
         stored.setCreatedAt(Instant.now().minusSeconds(61));
         pins.saveAndFlush(stored);
@@ -71,7 +89,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         entityManager.flush();
         entityManager.clear();
         assertTrue(userRepository.findById(user.getId()).orElseThrow().isEmailVerified());
-        assertTrue(pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).isEmpty());
+        assertTrue(pins.findFirstByUserIdAndPurposeOrderByCreatedAtDesc(user.getId(), PinPurpose.ACCOUNT_ACTIVATION).isEmpty());
         verify(cognitoClient).adminConfirmSignUp(any(AdminConfirmSignUpRequest.class));
         verify(cognitoClient).adminUpdateUserAttributes(any(AdminUpdateUserAttributesRequest.class));
         assertEquals(1, applicationEvents.stream(AccountCreated.class).count());
@@ -82,7 +100,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         User user = unverifiedUser();
         verification.issue(user);
         var event = applicationEvents.stream(VerificationPinCreated.class).findFirst().orElseThrow();
-        var pin = pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow();
+        var pin = pins.findFirstByUserIdAndPurposeOrderByCreatedAtDesc(user.getId(), PinPurpose.ACCOUNT_ACTIVATION).orElseThrow();
         pin.setExpiresAt(Instant.now().minusSeconds(1));
         pins.saveAndFlush(pin);
         assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), event.pin()));
@@ -103,7 +121,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         for (int i = 0; i < 5; i++) {
             assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), wrong));
         }
-        assertEquals(5, pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow().getAttempts());
+        assertEquals(5, pins.findFirstByUserIdAndPurposeOrderByCreatedAtDesc(user.getId(), PinPurpose.ACCOUNT_ACTIVATION).orElseThrow().getAttempts());
         assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), event.pin()));
         verifyNoInteractions(cognitoClient);
     }
@@ -142,7 +160,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         request.setEmail(TEST_EMAIL); // Already exists from AbstractServiceTest
         request.setPassword("Password123!");
 
-        assertThrows(ResourceAlreadyExistsException.class, () -> authService.signup(request));
+        assertThrows(BadRequestException.class, () -> authService.signup(request));
         assertEquals(0, applicationEvents.stream(AccountCreated.class).count());
     }
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 
 @Slf4j
 @RestControllerAdvice
@@ -40,7 +41,7 @@ public class HttpExceptionHandler{
 
         List<ErrorResponse.FieldValidationError> errors = ex.getBindingResult().getFieldErrors()
                 .stream()
-                .map(error -> new ErrorResponse.FieldValidationError(error.getField(), error.getDefaultMessage(), error.getRejectedValue()))
+                .map(error -> new ErrorResponse.FieldValidationError(error.getField(), error.getDefaultMessage(), isSecret(error.getField()) ? null : error.getRejectedValue()))
                 .toList();
 
         ErrorResponse response = ErrorResponse.builder()
@@ -57,4 +58,7 @@ public class HttpExceptionHandler{
                 .body(response);
     }
 
+    private boolean isSecret(String field) {
+        return field.toLowerCase(Locale.ROOT).contains("password") || field.equalsIgnoreCase("pin");
+    }
 }

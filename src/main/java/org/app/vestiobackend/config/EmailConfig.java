@@ -7,7 +7,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
 import java.time.Duration;
+import org.springframework.scheduling.annotation.EnableAsync;
 
+@EnableAsync
 @Configuration(proxyBeanMethods = false)
 public class EmailConfig {
     @Bean

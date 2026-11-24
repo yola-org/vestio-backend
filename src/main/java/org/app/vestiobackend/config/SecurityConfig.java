@@ -2,6 +2,8 @@ package org.app.vestiobackend.config;
 
 import org.app.vestiobackend.config.filters.LocalMockAuthFilter;
 import org.app.vestiobackend.security.ApiAuthenticationInterceptor;
+import org.app.vestiobackend.repository.UserRepository;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -37,6 +39,8 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(authorize -> authorize
+                // Preserve the original status when the container renders an error response.
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // MVC checks the policy on the handler it selects for the request.
                 .requestMatchers(API_PATH).permitAll()
@@ -53,6 +57,8 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(authorize -> authorize
+                // Preserve the original status when the container renders an error response.
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // MVC checks the policy on the handler it selects for the request.
                 .requestMatchers(API_PATH).permitAll()
@@ -68,8 +74,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public MappedInterceptor apiAuthenticationInterceptor() {
-        return new MappedInterceptor(new String[]{API_PATH}, new ApiAuthenticationInterceptor());
+    public MappedInterceptor apiAuthenticationInterceptor(UserRepository users) {
+        return new MappedInterceptor(new String[]{API_PATH}, new ApiAuthenticationInterceptor(users));
     }
 
     @Bean

@@ -17,11 +17,15 @@ public class EmailTemplate {
     private final String layout;
     private final String welcome;
     private final String verification;
+    private final String passwordReset;
+    private final String passwordChanged;
 
     public EmailTemplate() throws IOException {
         layout = load("layout");
         welcome = load("welcome");
         verification = load("verification");
+        passwordReset = load("password-reset");
+        passwordChanged = load("password-changed");
     }
 
     public Message welcome(String firstName, String siteUrl) {
@@ -47,6 +51,24 @@ public class EmailTemplate {
         return message("Vestio — confirmez votre adresse e-mail",
                 "Votre code de confirmation expire dans 10 minutes.",
                 "CONFIRMATION DE VOTRE COMPTE", "Confirmez votre adresse e-mail", content, text);
+    }
+
+    public Message passwordReset(String pin) {
+        String content = interpolate(passwordReset, Map.of("pin", escape(pin)));
+        String text = "Votre code de réinitialisation Vestio : " + pin
+                + "\nIl expire dans 10 minutes. Seul le dernier code envoyé est valide."
+                + "\nSi vous n’avez pas demandé ce code, ignorez cet e-mail. Votre mot de passe reste inchangé.\n";
+        return message("Vestio — réinitialisez votre mot de passe", "Votre code de réinitialisation expire dans 10 minutes.",
+                "SÉCURITÉ DE VOTRE COMPTE", "Réinitialisez votre mot de passe", content, text);
+    }
+
+    public Message passwordChanged(String siteUrl) {
+        String loginUrl = siteUrl.replaceAll("/+$", "") + "/login";
+        String content = interpolate(passwordChanged, Map.of("loginUrl", escape(loginUrl)));
+        String text = "Votre mot de passe Vestio a été modifié.\nConnectez-vous avec votre nouveau mot de passe : " + loginUrl
+                + "\nSi vous n’êtes pas à l’origine de cette modification, réinitialisez votre mot de passe et contactez-nous.\n";
+        return message("Vestio — votre mot de passe a été modifié", "Votre mot de passe Vestio a été modifié.",
+                "SÉCURITÉ DE VOTRE COMPTE", "Votre mot de passe a été modifié", content, text);
     }
 
     private Message message(String subject, String preheader, String eyebrow, String heading, String content, String text) {

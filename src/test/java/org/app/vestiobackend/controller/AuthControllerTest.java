@@ -6,6 +6,8 @@ import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.service.AuthService;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
@@ -21,6 +23,41 @@ public class AuthControllerTest extends AbstractControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @Test
+    void forgotPasswordReturnsEmailNotFoundForUnknownAccounts() throws Exception {
+        mockMvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"test@example.com\"}"))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"));
+        mockMvc.perform(post("/api/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"missing@example.com\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("ERR_EMAIL_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Your email wasn't found."));
+    }
+
+    @Test
+    void resetPasswordReturnsEmailNotFoundForUnknownAccounts() throws Exception {
+        mockMvc.perform(post("/api/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"missing@example.com\",\"pin\":\"123456\",\"newPassword\":\"NewPassword123!\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("ERR_EMAIL_NOT_FOUND"));
+    }
+
+    @Test
+    void invalidResetCodeIsRejectedWithoutAuthentication() throws Exception {
+        mockMvc.perform(post("/api/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"test@example.com\",\"pin\":\"123456\",\"newPassword\":\"NewPassword123!\"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.error").value("ERR_INVALID_RESET_PIN"));
+    }
+
+    @Test
+    void resetValidationNeverReturnsPasswordOrPinValues() throws Exception {
+        var response = mockMvc.perform(post("/api/auth/reset-password").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"test@example.com\",\"pin\":\"secret-pin-value\",\"newPassword\":\"secret-weak-password\"}"))
+                .andExpect(status().isBadRequest()).andReturn().getResponse().getContentAsString();
+        assertFalse(response.contains("secret-weak-password"));
+        assertFalse(response.contains("secret-pin-value"));
+    }
 
     @Test
     public void signupShouldReturnOk() throws Exception {

@@ -6,13 +6,16 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "email_verification_pins")
+@Table(name = "pins")
 @Getter @Setter @NoArgsConstructor
-public class EmailVerificationPin {
+public class Pin {
     @Id
     private UUID id;
     @Column(nullable = false)
     private UUID userId;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
+    private PinPurpose purpose;
     @Column(nullable = false, length = 64)
     private String pinHash;
     @Column(nullable = false)

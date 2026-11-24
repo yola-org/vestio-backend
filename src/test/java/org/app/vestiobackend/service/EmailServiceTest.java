@@ -49,6 +49,23 @@ class EmailServiceTest {
     }
 
     @Test
+    void passwordEmailsUseSharedLayoutAndHaveNoPasswordContent() throws Exception {
+        var reset = template.passwordReset("012345");
+        var changed = template.passwordChanged("https://vestio.example.com/");
+        for (var message : List.of(reset, changed)) {
+            assertTrue(message.html().startsWith("<!doctype html>"));
+            assertTrue(message.html().contains("vestio<span"));
+            assertFalse(message.html().contains("{{content}}"));
+            assertFalse(message.text().isBlank());
+        }
+        assertTrue(reset.html().contains("012345"));
+        assertTrue(changed.html().contains("https://vestio.example.com/login"));
+        var event = new PasswordResetPinCreated(UUID.randomUUID(), account.email(), "012345");
+        new EmailService(resendProvider, properties(true, "test-key"), template).sendPasswordReset(event);
+        verify(emails).send(any(CreateEmailOptions.class), any(RequestOptions.class));
+    }
+
+    @Test
     void sendsVerificationPinOnlyAfterCommit() throws Exception {
         var pin = new VerificationPinCreated(UUID.randomUUID(), "jane@example.com", "012345");
         new TransactionTemplate(transactionManager).executeWithoutResult(status -> {

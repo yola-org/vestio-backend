@@ -3,6 +3,9 @@ package org.app.vestiobackend.controller;
 import org.app.vestiobackend.service.EmailVerificationService;
 import org.app.vestiobackend.dto.ConfirmEmailRequestDto;
 import org.app.vestiobackend.dto.ResendPinRequestDto;
+import org.app.vestiobackend.dto.ForgotPasswordRequestDto;
+import org.app.vestiobackend.dto.ResetPasswordRequestDto;
+import org.app.vestiobackend.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.JwtResponseDto;
@@ -28,6 +31,20 @@ public class AuthController {
 
     private final AuthService authService;
     private final EmailVerificationService verification;
+    private final PasswordResetService passwordReset;
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDto request) {
+        passwordReset.request(request.email());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body("If an eligible account exists, a password reset PIN has been sent.");
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequestDto request) {
+        passwordReset.reset(request.email(), request.pin(), request.newPassword());
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body("Password reset. Please sign in with your new password.");
+    }
 
     @PostMapping("/confirm-email")
     public ResponseEntity<String> confirmEmail(@Valid @RequestBody ConfirmEmailRequestDto request) {

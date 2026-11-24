@@ -35,6 +35,9 @@ databaseChangeLog:
                   constraints:
                     nullable: false
               - column:
+                  name: password_changed_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
                   name: age
                   type: INT
               - column:
@@ -65,7 +68,7 @@ databaseChangeLog:
                   constraints:
                     nullable: false
         - createTable:
-            tableName: email_verification_pins
+            tableName: pins
             columns:
               - column:
                   name: id
@@ -79,9 +82,14 @@ databaseChangeLog:
                   constraints:
                     nullable: false
                     deleteCascade: true
-                    foreignKeyName: fk_email_pin_user
+                    foreignKeyName: fk_pin_user
                     referencedTableName: users
                     referencedColumnNames: id
+              - column:
+                  name: purpose
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
               - column:
                   name: pin_hash
                   type: VARCHAR(64)
@@ -104,11 +112,13 @@ databaseChangeLog:
                   constraints:
                     nullable: false
         - createIndex:
-            tableName: email_verification_pins
-            indexName: idx_email_pins_user_created
+            tableName: pins
+            indexName: idx_pins_user_purpose_created
             columns:
               - column:
                   name: user_id
+              - column:
+                  name: purpose
               - column:
                   name: created_at
         - createTable:
@@ -152,7 +162,7 @@ databaseChangeLog:
                   name: category_id
       rollback:
         - dropTable:
-            tableName: email_verification_pins
+            tableName: pins
         - dropTable:
             tableName: user_preferences
         - dropTable:

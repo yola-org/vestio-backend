@@ -2,6 +2,9 @@ package org.app.vestiobackend.http.errors;
 
 public enum ErrorCode {
     ERR_UNAUTHORIZED,
+    ERR_INVALID_RESET_PIN,
+    ERR_EMAIL_NOT_FOUND,
+    ERR_PASSWORD_POLICY,
     ERR_EMAIL_NOT_VERIFIED,
     ERR_INVALID_VERIFICATION_PIN,
     ERR_VERIFICATION_RATE_LIMITED,

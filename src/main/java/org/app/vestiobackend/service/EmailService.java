@@ -11,6 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Duration;
+import org.springframework.scheduling.annotation.Async;
 
 @Slf4j
 @Service
@@ -19,6 +20,33 @@ public class EmailService {
     private final ObjectProvider<Resend> resend;
     private final EmailProperties properties;
     private final EmailTemplate template;
+
+    @Async
+    @TransactionalEventListener
+    public void sendPasswordReset(PasswordResetPinCreated event) {
+        sendPasswordEmail(event.email(), template.passwordReset(event.pin()), "password-reset/" + event.id());
+    }
+
+    @Async
+    @TransactionalEventListener
+    public void sendPasswordChanged(PasswordChanged event) {
+        sendPasswordEmail(event.email(), template.passwordChanged(properties.siteUrl().toString()), "password-changed/" + event.resetId());
+    }
+
+    private void sendPasswordEmail(String recipient, EmailTemplate.Message message, String deliveryId) {
+        if (!properties.enabled() || properties.apiKey() == null || properties.apiKey().isBlank()) {
+            log.warn("Password email skipped for delivery {}: email delivery is not configured", deliveryId);
+            return;
+        }
+        try {
+            var email = CreateEmailOptions.builder().from(properties.from()).to(recipient)
+                    .subject(message.subject()).html(message.html()).text(message.text()).build();
+            resend.getObject().emails().send(email, RequestOptions.builder()
+                    .setIdempotencyKey(deliveryId).timeout(Duration.ofSeconds(5)).build());
+        } catch (Exception failure) {
+            log.error("Password email failed for delivery {} ({})", deliveryId, failure.getClass().getSimpleName());
+        }
+    }
 
     @TransactionalEventListener
     public void sendVerification(VerificationPinCreated event) {

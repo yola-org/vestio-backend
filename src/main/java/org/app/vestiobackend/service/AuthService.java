@@ -7,7 +7,7 @@ import org.app.vestiobackend.dto.SignupRequestDto;
 import org.app.vestiobackend.entity.User;
 import org.app.vestiobackend.http.errors.ErrorCode;
 import org.app.vestiobackend.http.errors.exception.InternalException;
-import org.app.vestiobackend.http.errors.exception.ResourceAlreadyExistsException;
+import org.app.vestiobackend.http.errors.exception.BadRequestException;
 import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.app.vestiobackend.mapper.UserMapper;
 import org.app.vestiobackend.repository.UserRepository;
@@ -65,12 +65,12 @@ public class AuthService {
      * Creates the user in AWS Cognito and saves a corresponding user record in the local database.
      *
      * @param request The signup request containing user details and password.
-     * @throws ResourceAlreadyExistsException if the email is already registered in the local database.
+     * @throws BadRequestException if the email is already registered locally or in Cognito.
      */
     @Transactional
     public void signup(SignupRequestDto request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            throw new ResourceAlreadyExistsException(ErrorCode.ERR_EMAIL_ALREADY_ASSOCIATED_WITH_ANOTHER_ACCOUNT, "This email is already associated with an account.");
+        if (userRepository.existsByEmailIgnoreCase(request.getEmail())) {
+            throw emailAlreadyRegistered();
         }
 
         // 1. Create user in Cognito
@@ -86,7 +86,13 @@ public class AuthService {
                 .userAttributes(emailAttr)
                 .build();
 
-        SignUpResponse response = cognitoClient.signUp(signUpRequest);
+        SignUpResponse response;
+        try {
+            response = cognitoClient.signUp(signUpRequest);
+        } catch (UsernameExistsException duplicate) {
+            // Cognito can retain an account after a local database reset or failed signup commit.
+            throw emailAlreadyRegistered();
+        }
 
         // 2. Save user in local DB
         User user = userMapper.signupRequestToUser(request);
@@ -94,6 +100,11 @@ public class AuthService {
 
         userRepository.save(user);
         verification.issue(user);
+    }
+
+    private BadRequestException emailAlreadyRegistered() {
+        return new BadRequestException(ErrorCode.ERR_EMAIL_ALREADY_ASSOCIATED_WITH_ANOTHER_ACCOUNT,
+                "This email is already associated with an account.");
     }
 
     /**
