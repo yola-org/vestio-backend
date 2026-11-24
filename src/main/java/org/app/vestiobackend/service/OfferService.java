@@ -1,5 +1,8 @@
 package org.app.vestiobackend.service;
 
+import org.app.vestiobackend.dto.PaginatedResult;
+import org.app.vestiobackend.mapper.PaginationMapper;
+import org.springframework.data.domain.PageRequest;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.CreateOfferRequest;
@@ -55,15 +58,15 @@ public class OfferService {
     private String currency;
 
     @Transactional(readOnly = true)
-    public List<OfferSummaryDto> getSentOffers() {
-        return offerRepository.findByUser_IdOrderByCreatedAtDescIdDesc(userContext.getCurrentUser().getId())
-                .stream().map(this::toOfferSummary).toList();
+    public PaginatedResult<OfferSummaryDto> getSentOffers(int page, int size) {
+        return PaginationMapper.from(offerRepository.findByUser_IdOrderByCreatedAtDescIdDesc(userContext.getCurrentUser().getId(), PageRequest.of(page, size))
+                .map(this::toOfferSummary));
     }
 
     @Transactional(readOnly = true)
-    public List<OfferSummaryDto> getReceivedOffers() {
-        return offerRepository.findByListing_User_IdOrderByCreatedAtDescIdDesc(userContext.getCurrentUser().getId())
-                .stream().map(this::toOfferSummary).toList();
+    public PaginatedResult<OfferSummaryDto> getReceivedOffers(int page, int size) {
+        return PaginationMapper.from(offerRepository.findByListing_User_IdOrderByCreatedAtDescIdDesc(userContext.getCurrentUser().getId(), PageRequest.of(page, size))
+                .map(this::toOfferSummary));
     }
 
     @Transactional

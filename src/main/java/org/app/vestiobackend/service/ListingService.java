@@ -23,7 +23,8 @@ import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.mapper.ListingMapper;
 import org.hibernate.dialect.PostgreSQLDialect;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
-import org.springframework.data.domain.Page;
+import org.app.vestiobackend.dto.PaginatedResult;
+import org.app.vestiobackend.mapper.PaginationMapper;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -118,13 +119,13 @@ public class ListingService {
 
     /** Retrieves a database-paginated page of available listings, newest first. */
     @Transactional(readOnly = true)
-    public Page<ListingSummaryDto> getAllListings(int size, int page) {
+    public PaginatedResult<ListingSummaryDto> getAllListings(int size, int page) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return listingSummaryRepository.available(pageable);
+        return PaginationMapper.from(listingSummaryRepository.available(pageable));
     }
 
     @Transactional(readOnly = true)
-    public List<ListingSummaryDto> searchListings(ListingSearchFilters filters, int size, int page) {
+    public PaginatedResult<ListingSummaryDto> searchListings(ListingSearchFilters filters, int size, int page) {
         Pageable pageable = PageRequest.of(page, size);
         boolean postgres = entityManagerFactory.unwrap(SessionFactoryImplementor.class)
                 .getJdbcServices().getDialect() instanceof PostgreSQLDialect;
@@ -140,8 +141,8 @@ public class ListingService {
                 }
             }
         }
-        return listingSummaryRepository.search(
-                        ListingSearchSpecification.matching(filters, postgres, categoryIds), pageable);
+        return PaginationMapper.from(listingSummaryRepository.page(
+                        ListingSearchSpecification.matching(filters, postgres, categoryIds), pageable));
     }
 
     /**
@@ -298,8 +299,8 @@ public class ListingService {
      * @return The saved listing summaries.
      */
     @Transactional(readOnly = true)
-    public List<ListingSummaryDto> getFavorites() {
-        return listingSummaryRepository.favorites(userContext.getCurrentUser().getId());
+    public PaginatedResult<ListingSummaryDto> getFavorites(int size, int page, List<UUID> listingIds) {
+        return PaginationMapper.from(listingSummaryRepository.favorites(userContext.getCurrentUser().getId(), listingIds, PageRequest.of(page, size)));
     }
 
     private Listing getListingForFavoriteMutation(UUID id, User user) {
@@ -315,15 +316,15 @@ public class ListingService {
     }
 
     @Transactional(readOnly = true)
-    public List<ListingSummaryDto> getPendingListingsForUser(int size, int page) {
+    public PaginatedResult<ListingSummaryDto> getPendingListingsForUser(int size, int page) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return listingSummaryRepository.forUser(userContext.getCurrentUser().getId(),
-                List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING), pageable);
+        return PaginationMapper.from(listingSummaryRepository.forUser(userContext.getCurrentUser().getId(),
+                List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING), pageable));
     }
 
     @Transactional(readOnly = true)
-    public List<ListingSummaryDto> getListingsForCurrentUser(int size, int page) {
+    public PaginatedResult<ListingSummaryDto> getListingsForCurrentUser(int size, int page, ListingStatus status) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
-        return listingSummaryRepository.forUser(userContext.getCurrentUser().getId(), List.of(), pageable);
+        return PaginationMapper.from(listingSummaryRepository.forUser(userContext.getCurrentUser().getId(), status == null ? List.of() : List.of(status), pageable));
     }
 }

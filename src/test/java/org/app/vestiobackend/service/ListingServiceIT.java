@@ -194,7 +194,7 @@ public class ListingServiceIT extends AbstractServiceIT {
         Listing otherPending = createPendingListing("Other pending listing", otherUser);
         createTestListing("My available listing", testUser, testCity, testCategory);
 
-        List<ListingSummaryDto> listings = listingService.getPendingListingsForUser(12, 0);
+        List<ListingSummaryDto> listings = listingService.getPendingListingsForUser(12, 0).items();
 
         assertEquals(1, listings.size());
         ListingSummaryDto result = listings.getFirst();
@@ -205,22 +205,19 @@ public class ListingServiceIT extends AbstractServiceIT {
         assertEquals(List.of(testSize.getName()), result.getSizeNames());
 
         setupSecurityContext(otherUser);
-        assertEquals(List.of(otherPending.getId()), listingService.getPendingListingsForUser(12, 0)
-                .stream().map(ListingSummaryDto::getId).toList());
+        assertEquals(List.of(otherPending.getId()), listingService.getPendingListingsForUser(12, 0).items().stream().map(ListingSummaryDto::getId).toList());
     }
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void getPendingListingsShouldReturnNewestFirstAcrossPages() {
-        assertTrue(listingService.getPendingListingsForUser(1, 0).isEmpty());
+        assertTrue(listingService.getPendingListingsForUser(1, 0).items().isEmpty());
         Listing older = createPendingListing("Older pending listing", testUser);
         Listing newer = createPendingListing("Newer pending listing", testUser);
 
-        assertEquals(List.of(newer.getId()), listingService.getPendingListingsForUser(1, 0)
-                .stream().map(ListingSummaryDto::getId).toList());
-        assertEquals(List.of(older.getId()), listingService.getPendingListingsForUser(1, 1)
-                .stream().map(ListingSummaryDto::getId).toList());
-        assertTrue(listingService.getPendingListingsForUser(1, 2).isEmpty());
+        assertEquals(List.of(newer.getId()), listingService.getPendingListingsForUser(1, 0).items().stream().map(ListingSummaryDto::getId).toList());
+        assertEquals(List.of(older.getId()), listingService.getPendingListingsForUser(1, 1).items().stream().map(ListingSummaryDto::getId).toList());
+        assertTrue(listingService.getPendingListingsForUser(1, 2).items().isEmpty());
     }
 
     private Listing createPendingListing(String title, User owner) {

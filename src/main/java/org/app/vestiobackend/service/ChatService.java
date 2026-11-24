@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.app.vestiobackend.dto.ChatDto;
 import org.app.vestiobackend.dto.MessageDto;
 import org.app.vestiobackend.dto.PaginatedResult;
+import org.app.vestiobackend.mapper.PaginationMapper;
 import org.app.vestiobackend.dto.SendMessageRequest;
 import org.app.vestiobackend.entity.Chat;
 import org.app.vestiobackend.entity.Message;
@@ -32,7 +33,7 @@ public class ChatService {
     @Transactional(readOnly = true)
     public PaginatedResult<ChatDto> list(int page, int size) {
         UUID userId = userContext.getCurrentUser().getId();
-        return PaginatedResult.from(chatRepository.findForParticipant(userId, PageRequest.of(page, size))
+        return PaginationMapper.from(chatRepository.findForParticipant(userId, PageRequest.of(page, size))
                 .map(summary -> ChatDto.from(summary.getChat(), summary.getLastMessage(), summary.getListingCoverAssetKey())));
     }
 
@@ -46,7 +47,7 @@ public class ChatService {
     @Transactional(readOnly = true)
     public PaginatedResult<MessageDto> messages(UUID id, int page, int size) {
         Chat chat = chatRepository.findByIdForParticipant(id, userContext.getCurrentUser().getId()).orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "Chat not found"));
-        return PaginatedResult.from(messageRepository.findByChat_Id(chat.getId(), PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"))).map(MessageDto::from));
+        return PaginationMapper.from(messageRepository.findByChat_Id(chat.getId(), PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"))).map(MessageDto::from));
     }
 
     @Transactional

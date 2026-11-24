@@ -35,20 +35,20 @@ class UserOfferControllerTest extends AbstractOfferControllerTest {
 
         mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].offer.userId").value(testUser.getId().toString()))
-                .andExpect(jsonPath("$[0].offer.listingId").value(otherListing.getId().toString()))
-                .andExpect(jsonPath("$[0].listingTitle").value("Other listing"));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].offer.userId").value(testUser.getId().toString()))
+                .andExpect(jsonPath("$.items[0].offer.listingId").value(otherListing.getId().toString()))
+                .andExpect(jsonPath("$.items[0].listingTitle").value("Other listing"));
 
         mockMvc.perform(get("/api/offers/received").with(authenticatedUser(testUser)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].offer.userId").value(buyer.getId().toString()))
-                .andExpect(jsonPath("$[0].offer.listingId").value(listing.getId().toString()))
-                .andExpect(jsonPath("$[0].listingTitle").value("Listing"))
-                .andExpect(jsonPath("$[0].senderName").value("Offer Buyer"))
-                .andExpect(jsonPath("$[0].senderProfileImageKey").value(profileKey))
-                .andExpect(jsonPath("$[0].listingCoverAssetKey").value(cover.toString()));
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].offer.userId").value(buyer.getId().toString()))
+                .andExpect(jsonPath("$.items[0].offer.listingId").value(listing.getId().toString()))
+                .andExpect(jsonPath("$.items[0].listingTitle").value("Listing"))
+                .andExpect(jsonPath("$.items[0].senderName").value("Offer Buyer"))
+                .andExpect(jsonPath("$.items[0].senderProfileImageKey").value(profileKey))
+                .andExpect(jsonPath("$.items[0].listingCoverAssetKey").value(cover.toString()));
     }
 
     @Test
@@ -87,4 +87,39 @@ class UserOfferControllerTest extends AbstractOfferControllerTest {
                         BigDecimal.class, receivedOffer));
     }
 
+
+    @Test
+    void paginatesOnlyTheAuthenticatedUsersOffersAndValidatesBounds() throws Exception {
+        for (int index = 0; index < 3; index++) {
+            Listing item = createTestListing("Paged offer " + index, testUser, testCity, testCategory);
+            submitOffer(buyer, item.getId(), VALID_OFFER).andExpect(status().isCreated());
+        }
+        User otherOwner = createBuyer("pagination-owner@example.com");
+        User otherBuyer = createBuyer("pagination-buyer@example.com");
+        Listing unrelated = createTestListing("Other offer", otherOwner, testCity, testCategory);
+        submitOffer(otherBuyer, unrelated.getId(), VALID_OFFER).andExpect(status().isCreated());
+        mockMvc.perform(get("/api/offers/received").with(authenticatedUser(testUser))
+                        .param("size", "2").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.page").value(1));
+        mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(buyer))
+                        .param("size", "2").param("page", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3));
+        mockMvc.perform(get("/api/offers/sent").with(authenticatedUser(buyer))
+                        .param("size", "2").param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(0))
+                .andExpect(jsonPath("$.totalElements").value(3));
+        for (String path : new String[]{"/api/offers/sent", "/api/offers/received"}) {
+            mockMvc.perform(get(path).with(authenticatedUser(testUser)).param("size", "101"))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(get(path).with(authenticatedUser(testUser)).param("page", "-1"))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 }
