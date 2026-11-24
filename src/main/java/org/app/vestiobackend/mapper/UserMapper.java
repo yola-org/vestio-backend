@@ -27,6 +27,8 @@ public interface UserMapper {
     User signupRequestToUser(SignupRequestDto dto);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "emailVerified", ignore = true)
+    @Mapping(target = "email", ignore = true)
     @Mapping(target = "profileImageKey", ignore = true)
     void updateUserFromDto(UserProfileDto dto, @MappingTarget User user);
 }

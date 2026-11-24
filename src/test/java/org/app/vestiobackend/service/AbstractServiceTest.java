@@ -181,7 +181,7 @@ public abstract class AbstractServiceTest {
     }
 
     protected User createTestUser(String email) {
-        User user = User.builder()
+        User user = User.builder().emailVerified(true)
                 .id(UUID.randomUUID())
                 .email(email)
                 .firstName("Test")

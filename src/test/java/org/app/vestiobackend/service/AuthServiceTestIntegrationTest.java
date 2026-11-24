@@ -1,5 +1,9 @@
 package org.app.vestiobackend.service;
 
+import org.app.vestiobackend.repository.EmailVerificationPinRepository;
+import java.time.Instant;
+import org.app.vestiobackend.http.errors.exception.BadRequestException;
+import static org.mockito.Mockito.verifyNoInteractions;
 import org.app.vestiobackend.security.UserContext;
 import org.app.vestiobackend.dto.JwtResponseDto;
 import org.app.vestiobackend.dto.LoginRequestDto;
@@ -10,6 +14,8 @@ import org.app.vestiobackend.http.errors.exception.UnAuthorizedException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.context.event.ApplicationEvents;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
 
 import jakarta.persistence.EntityManager;
@@ -22,13 +28,85 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @Transactional
+@RecordApplicationEvents
 public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
+
+    @Autowired
+    private ApplicationEvents applicationEvents;
 
     @Autowired
     private AuthService authService;
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired private EmailVerificationService verification;
+    @Autowired private EmailVerificationPinRepository pins;
+
+    private User unverifiedUser() {
+        User user = createTestUser("verify@example.com");
+        user.setEmailVerified(false);
+        userRepository.saveAndFlush(user);
+        return user;
+    }
+
+    @Test
+    void confirmsLatestPinAndDeletesAllPins() {
+        User user = unverifiedUser();
+        verification.issue(user);
+        var old = applicationEvents.stream(VerificationPinCreated.class).findFirst().orElseThrow();
+        var stored = pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow();
+        assertNotEquals(old.pin(), stored.getPinHash());
+        stored.setCreatedAt(Instant.now().minusSeconds(61));
+        pins.saveAndFlush(stored);
+        verification.resend(user.getEmail());
+        var latest = applicationEvents.stream(VerificationPinCreated.class).reduce((a, b) -> b).orElseThrow();
+        // The old PIN hash cannot validate against the latest row, even in the unlikely case codes repeat.
+        assertNotEquals(old.id(), latest.id());
+        if (!old.pin().equals(latest.pin())) {
+            assertThrows(BadRequestException.class,
+                    () -> verification.confirm(user.getEmail(), old.pin()));
+        }
+        verification.confirm(user.getEmail(), latest.pin());
+        entityManager.flush();
+        entityManager.clear();
+        assertTrue(userRepository.findById(user.getId()).orElseThrow().isEmailVerified());
+        assertTrue(pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).isEmpty());
+        verify(cognitoClient).adminConfirmSignUp(any(AdminConfirmSignUpRequest.class));
+        verify(cognitoClient).adminUpdateUserAttributes(any(AdminUpdateUserAttributesRequest.class));
+        assertEquals(1, applicationEvents.stream(AccountCreated.class).count());
+    }
+
+    @Test
+    void rejectsExpiredPinAndUnverifiedLogin() {
+        User user = unverifiedUser();
+        verification.issue(user);
+        var event = applicationEvents.stream(VerificationPinCreated.class).findFirst().orElseThrow();
+        var pin = pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow();
+        pin.setExpiresAt(Instant.now().minusSeconds(1));
+        pins.saveAndFlush(pin);
+        assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), event.pin()));
+        LoginRequestDto login = new LoginRequestDto();
+        login.setEmail(user.getEmail());
+        login.setPassword("Password123!");
+        assertThrows(UnAuthorizedException.class, () -> authService.login(login));
+        verifyNoInteractions(cognitoClient);
+    }
+
+    @Test
+    void limitsResendsAndLocksPinAfterFiveFailures() {
+        User user = unverifiedUser();
+        verification.issue(user);
+        var event = applicationEvents.stream(VerificationPinCreated.class).findFirst().orElseThrow();
+        assertThrows(BadRequestException.class, () -> verification.resend(user.getEmail()));
+        String wrong = event.pin().equals("000000") ? "000001" : "000000";
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), wrong));
+        }
+        assertEquals(5, pins.findFirstByUserIdOrderByCreatedAtDesc(user.getId()).orElseThrow().getAttempts());
+        assertThrows(BadRequestException.class, () -> verification.confirm(user.getEmail(), event.pin()));
+        verifyNoInteractions(cognitoClient);
+    }
 
     @Test
     public void testSignup() {
@@ -50,6 +128,10 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         User user = userRepository.findById(UUID.fromString(userId)).orElseThrow();
         assertEquals(request.getEmail(), user.getEmail());
         assertEquals(userId, user.getId().toString());
+        VerificationPinCreated created = applicationEvents.stream(VerificationPinCreated.class).findFirst().orElseThrow();
+        assertFalse(user.isEmailVerified());
+        assertEquals(request.getEmail(), created.email());
+        assertTrue(created.pin().matches("[0-9]{6}"));
     }
 
     @Test
@@ -61,6 +143,7 @@ public class AuthServiceTestIntegrationTest extends AbstractServiceTest {
         request.setPassword("Password123!");
 
         assertThrows(ResourceAlreadyExistsException.class, () -> authService.signup(request));
+        assertEquals(0, applicationEvents.stream(AccountCreated.class).count());
     }
 
     @Test

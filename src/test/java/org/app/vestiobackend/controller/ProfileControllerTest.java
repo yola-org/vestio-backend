@@ -1,5 +1,6 @@
 package org.app.vestiobackend.controller;
 
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import org.app.vestiobackend.dto.UserProfileDto;
 import org.app.vestiobackend.dto.UserPreferencesDto;
 import org.junit.jupiter.api.Test;
@@ -72,7 +73,7 @@ public class ProfileControllerTest extends AbstractControllerTest {
         testUser.setProfileImageKey(testUser.getId().toString() + "/profile/old.png");
         userRepository.save(testUser);
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
-                .thenThrow(software.amazon.awssdk.services.s3.model.S3Exception.builder().statusCode(503).message("Storage unavailable").build());
+                .thenThrow(S3Exception.builder().statusCode(503).message("Storage unavailable").build());
         mockMvc.perform(multipart("/api/profile/image").file(profileImage()).with(authenticatedUser(testUser)))
                 .andExpect(status().is5xxServerError());
         assertThat(userRepository.findById(testUser.getId()).orElseThrow().getProfileImageKey())

@@ -1,5 +1,6 @@
 package org.app.vestiobackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +17,8 @@ public class UserProfileDto {
     private String firstName;
     private String lastName;
     private String email;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private Boolean emailVerified;
     private Integer age;
     private String gender;
     private String city;

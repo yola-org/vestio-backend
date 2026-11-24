@@ -90,6 +90,7 @@ public class ListingService {
             if (sizes.size() != dto.getSizeIds().size()) {
                 throw new ResourceNotFoundException(ErrorCode.ERR_RESOURCE_NOT_FOUND, "One or more sizes not found");
             }
+            validateCategorySizes(listing.getCategory(), sizes);
             listing.setSizes(new LinkedHashSet<>(sizes));
         }
 
@@ -188,7 +189,16 @@ public class ListingService {
             listing.setSizes(new LinkedHashSet<>(sizes));
         }
 
+        validateCategorySizes(listing.getCategory(), new ArrayList<>(listing.getSizes() == null ? Set.of() : listing.getSizes()));
         return listingMapper.toDto(listingRepository.save(listing));
+    }
+
+    private void validateCategorySizes(Category category, List<Size> sizes) {
+        if (sizes.isEmpty()) return;
+        if (category.getSizeGroup() == null || sizes.stream().anyMatch(size ->
+                !size.getSizeGroup().getId().equals(category.getSizeGroup().getId()))) {
+            throw new BadRequestException(ErrorCode.ERR_INVALID_CATEGORY_SIZES, "Sizes must belong to the selected category");
+        }
     }
 
     @Transactional

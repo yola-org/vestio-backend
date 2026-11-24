@@ -30,6 +30,13 @@ spring:
           jwk-set-uri: https://cognito-idp.ca-central-1.amazonaws.com/ca-central-1_test/.well-known/jwks.json
 
 # Literal dummy values so tests never touch AWS.
+app:
+  email:
+    enabled: false
+    api-key: test-resend-key
+    from: Vestio <welcome@example.com>
+    site-url: https://vestio.example.com
+
 APPSYNC_EVENTS_HTTP_ENDPOINT: https://test.appsync-api.ca-central-1.amazonaws.com/event
 
 cognito:

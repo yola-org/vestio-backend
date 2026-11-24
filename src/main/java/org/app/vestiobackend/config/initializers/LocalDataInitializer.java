@@ -36,8 +36,8 @@ public class LocalDataInitializer implements CommandLineRunner {
             String email = account + "@example.com";
             UUID userId = ensureCognitoUserId(email, account);
             jdbcTemplate.update("""
-                    INSERT INTO users (id, email, first_name, last_name, created_at, updated_at)
-                    VALUES (?, ?, ?, 'Dev', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO users (id, email, first_name, last_name, email_verified, created_at, updated_at)
+                    VALUES (?, ?, ?, 'Dev', true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (email) DO NOTHING
                     """, userId, email, account);
             UUID existingId = jdbcTemplate.queryForObject(
@@ -45,6 +45,7 @@ public class LocalDataInitializer implements CommandLineRunner {
             if (!userId.equals(existingId)) {
                 throw new IllegalStateException("Dev user ID does not match its Cognito account: " + email);
             }
+            jdbcTemplate.update("UPDATE users SET email_verified = true WHERE id = ?", userId);
         }
     }
 
