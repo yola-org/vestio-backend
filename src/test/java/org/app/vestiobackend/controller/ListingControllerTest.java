@@ -259,7 +259,7 @@ public class ListingControllerTest extends AbstractControllerTest {
             own.setStatus(state);
             listingRepository.saveAndFlush(own);
             ownIds.add(own.getId().toString());
-            if (state == ListingStatus.AWAITING_ASSETS || state == ListingStatus.PENDING) pendingIds.add(own.getId().toString());
+            if (state == ListingStatus.AWAITING_ASSETS || state == ListingStatus.PENDING || state == ListingStatus.REJECTED_CONTENT) pendingIds.add(own.getId().toString());
             Listing privateListing = createTestListing("Other " + state, other, testCity, testCategory);
             privateListing.setStatus(state);
             listingRepository.saveAndFlush(privateListing);

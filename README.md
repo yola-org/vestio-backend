@@ -205,7 +205,7 @@ matches its ID. The canonical fixture is shared by common, backend and Lambda.
 ### Shared events library
 
 Notifications, enums, realtime event payloads and the AppSync publisher use
-`com.vestio:vestio-common:0.7.0` from GitHub Packages. Spring repositories and
+`com.vestio:vestio-common:0.9.0` from GitHub Packages. Spring repositories and
 notification services remain in this application. Shared JPA entities are included
 in the application's entity scan.
 
@@ -252,7 +252,7 @@ choose the recipient or sender name. Rejected and duplicate offers do not notify
 The service invokes the shared AppSync publisher directly after save/flush.
 A failed send rolls back both the offer and its notification, allowing a retry.
 
-Merge the common feature first and publish `vestio-common:0.7.0` before merging
+Merge the common feature first and publish `vestio-common:0.9.0` before merging
 this backend branch. Its local checks were run against the matching common source.
 
 ### Typed notification payloads
@@ -267,7 +267,7 @@ notification and frontend JSON shapes stay unchanged.
 
 All persisted audit timestamps and notification/event timestamps use `Instant`. APIs and AppSync events emit ISO 8601 UTC timestamps ending in `Z`; the frontend converts them to the browser timezone for display. Calendar dates must remain date-only. Hibernate JDBC and container JVM defaults use UTC.
 
-Release `vestio-common:0.7.0` before building these consumers. The initial Liquibase changelogs create all audit timestamp columns as `TIMESTAMP WITH TIME ZONE` from the start; no legacy timezone conversion or migration setting is required. Initialize the backend database before starting the image optimizer Lambda.
+Release `vestio-common:0.9.0` before building these consumers. The initial Liquibase changelogs create all audit timestamp columns as `TIMESTAMP WITH TIME ZONE` from the start; no legacy timezone conversion or migration setting is required. Initialize the backend database before starting the image optimizer Lambda.
 
 ## Chats and messages
 
@@ -277,7 +277,7 @@ Release `vestio-common:0.7.0` before building these consumers. The initial Liqui
 
 `PUT /api/listings/{listingId}/offers/{offerId}/accept` requires authentication as the listing owner and has no request body. It returns the accepted `OfferDto` (HTTP 200). Acceptance creates or reuses the listing/buyer chat, saves an `offer-accepted` system message with no sender or rendered text, and sends an `offer-accepted` notification to the buyer through the existing notification publisher. The notification and system message share `offerId`, `chatId`, numeric `amount`, `currency`, `ownerName`, `buyerName` and `listingTitle`. All names and offer details come from persisted records. `app.currency` defaults to `MAD` and can be overridden with `APP_CURRENCY`.
 
-The listing is locked during acceptance so repeated or concurrent requests do not duplicate the chat, system message or notification. Requests from the buyer or another user receive HTTP 401; mismatched listing/offer IDs receive HTTP 404. Notification publication failures roll back the offer status and all new database records, allowing a retry. Notification publication uses the existing send-before-commit flow: an event can still be delivered before a later database commit failure. There is no outbox. Publish `vestio-common:0.7.0` before building this backend update.
+The listing is locked during acceptance so repeated or concurrent requests do not duplicate the chat, system message or notification. Requests from the buyer or another user receive HTTP 401; mismatched listing/offer IDs receive HTTP 404. Notification publication failures roll back the offer status and all new database records, allowing a retry. Notification publication uses the existing send-before-commit flow: an event can still be delivered before a later database commit failure. There is no outbox. Publish `vestio-common:0.9.0` before building this backend update.
 
 `PUT /api/listings/{listingId}/offers/{offerId}/refuse` lets the listing owner mark a pending offer `REFUSED`; it returns the updated `OfferDto` (HTTP 200). Repeating the same decision is safe. Accepted and refused offers cannot switch to the other decision, or be edited/cancelled by the buyer (`ERR_OFFER_NOT_PENDING`). Both decisions take the listing lock, so concurrent Accept/Refuse requests produce one final outcome. The frontend shows Accept and Refuse only for pending received offers and displays the resulting status after refreshing.
 
@@ -399,3 +399,13 @@ As requested, this updates the existing schema baseline rather than adding an
 upgrade migration. An existing database needs an intentional migration or reset
 for the table rename, purpose column, and password-change timestamp. Apply the
 matching scoped IAM permissions in aws-infra before deploying the feature.
+
+## Refused listing content
+
+Image moderation can set the shared `ListingStatus.REJECTED_CONTENT` status.
+The owner's `/api/listings/pending` and `/api/listings/mine` collections include
+refused listings, while public browsing and details continue to exclude them.
+Replacing photos returns the listing to `AWAITING_ASSETS` for another check.
+This change requires common `0.9.0`, following the checked `0.8.0` release.
+Publish common before building this branch and deploy the backend before the
+Lambda begins writing the new status. The existing string status column needs no migration.
