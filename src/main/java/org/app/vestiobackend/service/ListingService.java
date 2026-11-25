@@ -319,7 +319,7 @@ public class ListingService {
     public PaginatedResult<ListingSummaryDto> getPendingListingsForUser(int size, int page) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"));
         return PaginationMapper.from(listingSummaryRepository.forUser(userContext.getCurrentUser().getId(),
-                List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING), pageable));
+                List.of(ListingStatus.AWAITING_ASSETS, ListingStatus.PENDING, ListingStatus.REJECTED_CONTENT), pageable));
     }
 
     @Transactional(readOnly = true)
